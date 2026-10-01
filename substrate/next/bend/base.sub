@@ -1,4 +1,5 @@
-;; Lifecycle: example. A slice of Bend's Base (bend2/base.bend), ported:
+;; Lifecycle: experimental. examples/bend/base.sub, as the new compiler
+;; builds it: a slice of Bend's Base (bend2/base.bend), ported:
 ;; its first datatypes, and arithmetic and equality on Nat. A constructor
 ;; named as its datatype is, which Bend's braces tell apart, is named in
 ;; lower case: Unit's is unit.
