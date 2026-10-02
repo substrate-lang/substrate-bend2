@@ -1,5 +1,5 @@
 ;; Lifecycle: experimental. The lowering of Bend as the new compiler builds
-;; it (next/bend): examples/bend/lower.sub, which follows Bend's compiler
+;; it (lib/languages/bend): examples/bend/lower.sub, which follows Bend's compiler
 ;; (bend2/comp.ts), but to code in linear memory, whose values are owned
 ;; as Bend2's runtime owns them: a module's checked definitions to kernel
 ;; code, as data, which bend.sub turns into syntax. A symbol in the code
@@ -35,9 +35,9 @@
 ;; is made in the current arena, from a checked term in core.sub's scratch
 ;; arena.
 
-(require-unqualified c "../c/c.sub")
-(require-unqualified kd "../compiler/kernel.sub")
-(require-unqualified forms "../c/forms.sub")
+(require-unqualified c "../../../compiler/c/c.sub")
+(require-unqualified kd "../../../compiler/kernel.sub")
+(require-unqualified forms "../../../compiler/c/forms.sub")
 (require-unqualified core "core.sub")
 (memory from c)
 (table from c)

@@ -1,5 +1,5 @@
 ;; Lifecycle: experimental. The kernel of Bend as the new compiler builds
-;; it (next/bend): examples/bend/core.sub, a port of Bend2's (bend2/bend.ts,
+;; it (lib/languages/bend): examples/bend/core.sub, a port of Bend2's (bend2/bend.ts,
 ;; from Term to Valid), written in the C-like Lisp and run at compile
 ;; time, function for function. Its terms; flattening matches into
 ;; lambda-matches; weak head and strong normal forms; comparison;
@@ -29,9 +29,9 @@
 ;; is done with the definition (end-check!). Lists are the kernel module's,
 ;; their elements pointers to terms, patterns or rows cast to datum.
 
-(require-unqualified c "../c/c.sub")
-(require-unqualified kd "../compiler/kernel.sub")
-(require-unqualified forms "../c/forms.sub")
+(require-unqualified c "../../../compiler/c/c.sub")
+(require-unqualified kd "../../../compiler/kernel.sub")
+(require-unqualified forms "../../../compiler/c/forms.sub")
 (memory from c)
 (table from c)
 

@@ -1,6 +1,6 @@
 ;; Laws and their proofs by induction and rewriting, checked as the module
-;; compiles (next/bend): add over a local N, and its left unit.
-(require-unqualified bend "../../bend/bend.sub")
+;; compiles (lib/languages/bend): add over a local N, and its left unit.
+(require-unqualified bend "../../lib/languages/bend/bend.sub")
 
 (type N Data [Z] [S [p : N]])
 
