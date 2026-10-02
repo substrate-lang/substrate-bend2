@@ -1,4 +1,4 @@
-;; Lifecycle: experimental. Bend as the new compiler builds it (lib/languages/bend):
+;; Lifecycle: experimental. Bend as the new compiler builds it (lib/bend):
 ;; examples/bend/bend.sub, a port of Bend2's dependently typed, affine
 ;; language (bend2/bend.ts), in s-expressions, whose kernel, core.sub,
 ;; checks each module's definitions while it compiles, and which lower.sub
@@ -74,9 +74,9 @@
 
 ;; C qualified, so that the code made here, in this module's scope, is
 ;; kernel code: its let, set! and numbers are the kernel's.
-(require c "../../../compiler/c/c.sub")
-(memory from c)
-(table from c)
+(require base "../../compiler/base/base.sub")
+(memory from base)
+(table from base)
 
 (provide [type bend-type] [def bend-def] [law bend-law] [match bend-match] [fn bend-fn] [-> bend-arrow]
          [let bend-let] [split bend-split] [absurd bend-absurd] [== bend-eql] [refl bend-refl]
@@ -84,12 +84,12 @@
          [Type bend-Type] [Data bend-Data] [Quant bend-Quant] [&0 bend-q0] [&1 bend-q1] [&2 bend-q2]
          [print bend-print] [live-cells bend-live-cells] [#%datum bend-datum])
 
-(require-unqualified forms "../../../compiler/c/forms.sub")
+(require-unqualified forms "../../compiler/base/forms.sub")
 (begin-for-syntax
-  (require-unqualified c "../../../compiler/c/c.sub")
-  (require-unqualified kd "../../../compiler/kernel.sub")
-  (require sm "../../../compiler/c/c-syntax-match.sub" syntax-match _ ... ?)
-  (require-unqualified forms "../../../compiler/c/forms.sub")
+  (require-unqualified base "../../compiler/base/base.sub")
+  (require-unqualified kd "../../compiler/kernel.sub")
+  (require sm "../../compiler/base/syntax-match.sub" syntax-match _ ... ?)
+  (require-unqualified forms "../../compiler/base/forms.sub")
   (require-unqualified core "core.sub")
   (require-unqualified lower "lower.sub")
 

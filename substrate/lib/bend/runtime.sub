@@ -1,5 +1,5 @@
 ;; Lifecycle: experimental. What a program of Bend as the new compiler
-;; builds it (lib/languages/bend) runs with, besides its own code, in the C-like
+;; builds it (lib/bend) runs with, besides its own code, in the C-like
 ;; Lisp: its memory, as Bend2's runtime keeps it (bend2/comp.ts, BendRT
 ;; section 5), and what a print, whose code lower.sub makes, writes with.
 ;; A module whose Bend definitions have code requires this one as
@@ -26,10 +26,10 @@
 ;; takes them: the code is single-threaded, and no analysis of the whole
 ;; program says which types are shared.
 
-(require-unqualified c "../../../compiler/c/c.sub")
-(require print "../../print.sub")
-(memory from c)
-(table from c)
+(require-unqualified base "../../compiler/base/base.sub")
+(require print "../../compiler/print.sub")
+(memory from base)
+(table from base)
 
 (provide node free-node static share take drop node-of live lists live-count word-u32 u32-word write-u32 write-byte newline write-nat)
 
