@@ -11,6 +11,23 @@
          define printf)
 
 (require macros compiler/macros define-macro)
+
+;; doc-forms tells sub doc which of Bend's forms define what. A law and the def of the same name are one item.
+(define-syntax doc-forms
+  (quote-syntax
+   ((law (law (NAME PARAM ...) RESULT))
+    (definition (def (NAME PARAM ...) RESULT _))
+    (definition (def (NAME PARAM ...) _ ...))
+    (type (type NAME KIND CONSTRUCTOR ...))
+    (function (define (NAME PARAM ...) _ ...))
+    (requires (require PREFIX MODULE _ ...))
+    (requires (require-unqualified PREFIX MODULE))
+    (exports (provide EXPORT ...))
+    (reexports (all-from-out MODULE))
+    (reexports (except-out _ ...))
+    (reexports (all-wasm-forms))
+    (renamed [AS NAME]))))
+
 (begin-for-syntax
   (require-unqualified macros compiler/macros)
   (require-unqualified core "core.sub")
