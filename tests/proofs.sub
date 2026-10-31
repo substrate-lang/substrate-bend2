@@ -14,3 +14,5 @@
   (match a
     [Z refl]
     [(S p) (rewrite (add_zero p) (== (S (add p Z)) (S _) N) refl)]))
+
+(test proofs)

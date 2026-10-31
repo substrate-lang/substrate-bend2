@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (def (range [+ n : Nat]) (List Nat)
   (match n
@@ -53,3 +54,5 @@
   (print ((holder (range (nat 3))) (nat 1)))
   (print (unused (range (nat 4))))
   (printf "~a\n" (live-nodes)))
+
+(test memory (expect-output-file "memory.out" (main)))

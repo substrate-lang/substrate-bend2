@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (def (same [n : Nat]) (== n n Nat) refl)
 (def (Two) Type (Pair Nat Nat))
@@ -15,3 +16,5 @@
   (print (pair))
   (same (three))
   (Equal.sym (three)))
+
+(test erased (expect-output-file "erased.out" (main)))

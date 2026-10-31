@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (def (big) Nat (nat 100000))
 
@@ -26,3 +27,5 @@
   (print (half (nat 11)))
   (print (len (nat 1000) 0))
   (print (Nat.add (nat 700) (nat 300))))
+
+(test nat-literal (expect-output-file "nat-literal.out" (main)))

@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (type T Data [L [v : U32]] [N [l : T] [r : T]])
 
@@ -25,3 +26,5 @@
   (print (fst (norm (P 8 9))))
   (print (norm R))
   (printf "~a\n" (live-nodes)))
+
+(test inline (expect-output-file "inline.out" (main)))
