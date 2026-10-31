@@ -1,5 +1,6 @@
 ;; Bend: templates, a def's ~ parameters, instantiated at closed arguments.
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (def (inc [n : Nat]) Nat (Succ n))
 
@@ -75,3 +76,5 @@
   (print (shadow-arg))
   (print (dup-many))
   (print (keep (nat 3) (nat 5))))
+
+(test templates (expect-output-file "templates.out" (main)))

@@ -1,5 +1,6 @@
 ;; Bend: laws another module declares, filled here.
 (language bend bend)
+(require-unqualified tests std/test/test)
 (require-unqualified laws "fixtures/laws.sub")
 
 (def (half n)
@@ -16,3 +17,5 @@
 (def (half_4) (== (half (nat 4)) (nat 2) Nat) refl)
 
 (define (main) (print (half (nat 9))))
+
+(test fill (expect-output-file "fill.out" (main)))

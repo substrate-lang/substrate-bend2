@@ -1,5 +1,6 @@
 ;; Bend: + binders in patterns, (+ x), and Nat patterns, (nat n) and (nat n p).
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (type Pt Data [Pt0 [x : U32] [y : U32]])
 
@@ -25,3 +26,5 @@
   (print (small (nat 1)))
   (print (small (nat 7)))
   (printf "~a\n" (live-nodes)))
+
+(test patterns (expect-output-file "patterns.out" (main)))

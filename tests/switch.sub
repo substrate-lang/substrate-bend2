@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 
 (type Sh Data [Dot] [One [a : U32]] [Two [a : U32] [b : U32]] [More [s : Sh]] [Emp])
 
@@ -71,3 +72,5 @@
   (print (key (nat 3)))
   (print (key (nat 40)))
   (printf "~a\n" (live-nodes)))
+
+(test switch (expect-output-file "switch.out" (main)))

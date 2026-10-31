@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 (require-unqualified m "fixtures/map.sub")
 (require-unqualified i "fixtures/incs.sub")
 
@@ -7,3 +8,5 @@
 (define (main)
   (print (map Nat Nat inc (Con (nat 1) Nil)))
   (print (same (Con (nat 1) Nil))))
+
+(test share (expect-output-file "share.out" (main)))

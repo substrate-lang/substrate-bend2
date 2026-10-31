@@ -1,4 +1,5 @@
 (language bend bend)
+(require-unqualified tests std/test/test)
 (require substrate compiler/substrate cast)
 
 (type T Data [L [v : U32]] [N [l : T] [r : T]])
@@ -34,3 +35,5 @@
   (print (spin (U32.to_nat 100000) (gen (nat 2) 1)))
   (printf "~a\n" (cast i32 (sum (small))))
   (printf "~a\n" (live-nodes)))
+
+(test borrow (expect-output-file "borrow.out" (main)))
