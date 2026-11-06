@@ -1,5 +1,5 @@
 ;; Bend: how code runs: closures, partial application, erasure, let, rewrite, loops.
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (def (adder [n : Nat]) (-> Nat Nat) (fn (m) (Nat.add n m)))

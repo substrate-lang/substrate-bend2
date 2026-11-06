@@ -1,4 +1,4 @@
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (def (big) Nat (nat 100000))

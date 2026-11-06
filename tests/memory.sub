@@ -1,4 +1,4 @@
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (def (range [+ n : Nat]) (List Nat)

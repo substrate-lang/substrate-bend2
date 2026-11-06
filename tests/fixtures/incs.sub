@@ -1,5 +1,5 @@
 ;; An instance of map.sub's template, for another module to share.
-(language bend)
+(language bend2)
 (require-unqualified "map.sub")
 (provide inc-all)
 

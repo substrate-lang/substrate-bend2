@@ -1,5 +1,5 @@
 ;; Laws for another module to fill.
-(language bend)
+(language bend2)
 (provide half half_double)
 
 (law (half [n : Nat]) Nat)

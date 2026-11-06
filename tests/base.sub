@@ -1,7 +1,7 @@
 ;; Bend: a module using Base's definitions.
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
-(require b bend/base Nat.add)
+(require b bend2/base Nat.add)
 
 (def (two) Nat (nat 2))
 (def (four) Nat (b:Nat.add (nat 2) (two)))

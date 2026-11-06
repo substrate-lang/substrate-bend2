@@ -1,5 +1,5 @@
 ;; Bend: laws another module declares, filled here.
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 (require-unqualified "fixtures/laws.sub")
 

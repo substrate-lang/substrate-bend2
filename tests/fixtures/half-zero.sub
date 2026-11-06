@@ -1,5 +1,5 @@
 ;; A fill of laws.sub's half; half-same.sub fills it differently.
-(language bend)
+(language bend2)
 (require-unqualified "laws.sub")
 
 (def (half n) Zero)

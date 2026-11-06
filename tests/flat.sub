@@ -1,5 +1,5 @@
 ;; Bend: flat values.
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (type Pt Data [Pt0 [x : U32] [y : U32]])

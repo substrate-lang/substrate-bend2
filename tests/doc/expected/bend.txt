@@ -1,6 +1,6 @@
 ;; sample/bend
 ;; A module in Bend: a type, a law with its def, and a def with its type.
-;; language bend/bend
+;; language bend2/bend2
 
 (type Color Data [Red] [Green])
 

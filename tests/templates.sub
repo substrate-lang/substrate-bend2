@@ -1,5 +1,5 @@
 ;; Bend: templates, a def's ~ parameters, instantiated at closed arguments.
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (def (inc [n : Nat]) Nat (Succ n))

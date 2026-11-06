@@ -1,5 +1,5 @@
 ;; Bend: a pattern with the wrong number of fields.
-(language bend)
+(language bend2)
 
 (def (pred [n : Nat]) Nat
   (match n

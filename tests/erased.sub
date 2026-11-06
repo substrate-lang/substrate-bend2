@@ -1,4 +1,4 @@
-(language bend)
+(language bend2)
 (require-unqualified std/test/test)
 
 (def (same [n : Nat]) (== n n Nat) refl)

@@ -1,4 +1,4 @@
 ;; Bend: a term of another type.
-(language bend)
+(language bend2)
 
 (def (f [a : Nat]) Nat True)

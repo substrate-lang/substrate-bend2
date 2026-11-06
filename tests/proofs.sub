@@ -1,5 +1,5 @@
 ;; Bend: laws and their proofs by induction and rewriting.
-(language bend)
+(language bend2)
 
 (type N Data [Z] [S [p : N]])
 

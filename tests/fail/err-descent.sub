@@ -1,4 +1,4 @@
-(language bend)
+(language bend2)
 
 (def (add [a : Nat] [b : Nat]) Nat
   (match a
