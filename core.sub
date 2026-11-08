@@ -71,25 +71,16 @@
 (struct inf [tm (ptr term)] [ty (ptr term)] [us (ptr use)])
 (struct chk [tm (ptr term)] [us (ptr use)])
 
-(define (alloc [n u32]) -> (ptr void) (arena-alloc (current-arena) n))
+(define (new-term [t term]) -> (ptr term) (new (current-arena) t))
 
-(define (new-term [t term]) -> (ptr term)
-  (let ([p (cast (ptr term) (alloc (sizeof term)))]) (set! (@ p) t) p))
+(define (new-pat [q pat]) -> (ptr pat) (new (current-arena) q))
 
-(define (new-pat [q pat]) -> (ptr pat)
-  (let ([p (cast (ptr pat) (alloc (sizeof pat)))]) (set! (@ p) q) p))
+(define (new-body [b body]) -> (ptr body) (new (current-arena) b))
 
-(define (new-body [b body]) -> (ptr body)
-  (let ([p (cast (ptr body) (alloc (sizeof body)))]) (set! (@ p) b) p))
+(define (new-row [ps datum] [b (ptr term)]) -> (ptr row) (new (current-arena) (row #:ps ps #:body b)))
 
-(define (new-row [ps datum] [b (ptr term)]) -> (ptr row)
-  (let ([r (cast (ptr row) (alloc (sizeof row)))])
-    (set! (-> r ps) ps)
-    (set! (-> r body) b)
-    r))
-
-(define (term-array [n u32]) -> (slice (ptr term)) (slice (cast (ptr (ptr term)) (alloc (* n 4))) n))
-(define (binder-array [n u32]) -> (slice binder) (slice (cast (ptr binder) (alloc (* n (sizeof binder)))) n))
+(define (term-array [n u32]) -> (slice (ptr term)) (new (current-arena) (ptr term) n))
+(define (binder-array [n u32]) -> (slice binder) (new (current-arena) binder n))
 
 (define (term-of [d datum]) -> (ptr term) (cast (ptr term) d))
 (define (pat-of [d datum]) -> (ptr pat) (cast (ptr pat) d))
@@ -197,22 +188,10 @@
 ;; ---- the two forms of a term ----
 
 (define (env-bind [ev (ptr bound)] [i i32] [x (ptr term)]) -> (ptr bound)
-  (let ([e (cast (ptr bound) (alloc (sizeof bound)))])
-    (set! (-> e id) i)
-    (set! (-> e v) x)
-    (set! (-> e p) 0)
-    (set! (-> e penv) 0)
-    (set! (-> e next) ev)
-    e))
+  (new (current-arena) (bound #:id i #:v x #:p 0 #:penv 0 #:next ev)))
 
 (define (env-bind-pattern [ev (ptr bound)] [i i32] [p (ptr pat)]) -> (ptr bound)
-  (let ([e (cast (ptr bound) (alloc (sizeof bound)))])
-    (set! (-> e id) i)
-    (set! (-> e v) 0)
-    (set! (-> e p) p)
-    (set! (-> e penv) ev)
-    (set! (-> e next) ev)
-    e))
+  (new (current-arena) (bound #:id i #:v 0 #:p p #:penv ev #:next ev)))
 
 (define (env-find [ev (ptr bound)] [i i32]) -> (ptr bound)
   (while (!= ev 0)
@@ -481,12 +460,7 @@
 (define (quant-dem [q u32] [qt u32]) -> u32 (if (== q 0) 0 qt))
 (define (quant-show [q u32]) -> string (case q [(0) "-"] [(1) ""] [else "+"]))
 
-(define (new-use [id i32] [q u32] [next (ptr use)]) -> (ptr use)
-  (let ([u (cast (ptr use) (alloc (sizeof use)))])
-    (set! (-> u id) id)
-    (set! (-> u q) q)
-    (set! (-> u next) next)
-    u))
+(define (new-use [id i32] [q u32] [next (ptr use)]) -> (ptr use) (new (current-arena) (use #:id id #:q q #:next next)))
 
 (define (uses-get [u (ptr use)] [k i32]) -> u32
   (while (!= u 0)
@@ -538,13 +512,7 @@
 ;; ---- contexts ----
 
 (define (ctx-bind [cx (ptr ctx)] [i i32] [q u32] [k datum] [T (ptr term)]) -> (ptr ctx)
-  (let ([e (cast (ptr ctx) (alloc (sizeof ctx)))])
-    (set! (-> e i) i)
-    (set! (-> e q) q)
-    (set! (-> e k) k)
-    (set! (-> e T) T)
-    (set! (-> e next) (ctx-without cx i))
-    e))
+  (new (current-arena) (ctx #:i i #:q q #:k k #:T T #:next (ctx-without cx i))))
 
 (define (ctx-without [cx (ptr ctx)] [i i32]) -> (ptr ctx)
   (if (== (ctx-get cx i) 0)
@@ -552,8 +520,7 @@
       (let ([out (ptr ctx) 0] [last (ptr ctx) 0])
         (while (!= cx 0)
           (unless (== (-> cx i) i)
-            (let ([e (cast (ptr ctx) (alloc (sizeof ctx)))])
-              (set! (@ e) (@ cx))
+            (let ([e (new (current-arena) (@ cx))])
               (set! (-> e next) 0)
               (if (== last 0) (set! out e) (set! (-> last next) e))
               (set! last e)))
@@ -599,8 +566,7 @@
 (define (CtrD? [d (ptr tld)]) -> bool (match d [(CtrD _ _ _) #t] [_ #f]))
 (define (DefD? [d (ptr tld)]) -> bool (match d [(DefD _ _ _) #t] [_ #f]))
 
-(define (new-tld [d tld]) -> (ptr tld)
-  (let ([p (cast (ptr tld) (alloc (sizeof tld)))]) (set! (@ p) d) p))
+(define (new-tld [d tld]) -> (ptr tld) (new (current-arena) d))
 
 (define tlds (ptr hash-table) 0)
 (define ctrs (ptr hash-table) 0)
@@ -651,7 +617,7 @@
       (bend-error cx (fmt "a declared datatype (unknown: ~a)" (short (adt-k t))) 0 0 0 t 0))
     (if (null? r)
         d
-        (let* ([all (adtd-cs d)] [cs (slice (cast (ptr (ptr tld)) (alloc (* (-> all length) 4))) (-> all length))] [n u32 0])
+        (let* ([all (adtd-cs d)] [cs (new (current-arena) (ptr tld) (-> all length))] [n u32 0])
           (for ([j u32 0]) (< j (-> all length)) (+= j 1)
             (let ([c (@ all j)])
               (when (== (memq (ctrd-k c) r) 0)
@@ -684,8 +650,7 @@
 (define bottom (ptr level) 0)
 
 (define (new-level [below (ptr level)]) -> (ptr level)
-  (let ([l (cast (ptr level) (malloc (sizeof level)))])
-    (memset l 0 (sizeof level))
+  (let ([l (new 0 level)])
     (set! (-> l below) below)
     l))
 
@@ -939,8 +904,7 @@
   [LApp [p (ptr wlhs)] [x (ptr term)] [s (ptr srcloc)] [n i32]]
   [LExt [p (ptr wlhs)] [k datum] [m u32] [n i32]])
 
-(define (new-wlhs [w wlhs]) -> (ptr wlhs)
-  (let ([p (cast (ptr wlhs) (alloc (sizeof wlhs)))]) (set! (@ p) w) p))
+(define (new-wlhs [w wlhs]) -> (ptr wlhs) (new (current-arena) w))
 
 (define (wlhs-n [w (ptr wlhs)]) -> i32 (match w [(LTerm _ n) n] [(LApp _ _ _ n) n] [(LExt _ _ _ n) n]))
 
@@ -950,11 +914,7 @@
     [(LApp p x s _) (term-apply (lhs-build p) x s)]
     [(LExt p k m _) (lhs-ext (lhs-build p) k m nil)]))
 
-(define (push [st (ptr stack)] [f frame]) -> (ptr stack)
-  (let ([p (cast (ptr stack) (alloc (sizeof stack)))])
-    (set! (-> p f) f)
-    (set! (-> p next) st)
-    p))
+(define (push [st (ptr stack)] [f frame]) -> (ptr stack) (new (current-arena) (stack #:f f #:next st)))
 
 (define (app-on-top? [st (ptr stack)]) -> bool
   (and (!= st 0) (match (& (-> st f)) [(FApp _ _) #t] [_ #f])))
@@ -1241,12 +1201,7 @@
 (define (tele-unbind [T (ptr term)]) -> unbound
   (let ([out unbound] [doms nil] [n u32 0] [t (term-wnf T)])
     (while (All? t)
-      (let ([e (cast (ptr ctx) (alloc (sizeof ctx)))])
-        (set! (-> e i) (cast i32 n))
-        (set! (-> e q) (all-q t))
-        (set! (-> e k) (all-k t))
-        (set! (-> e T) (all-A t))
-        (set! (-> e next) 0)
+      (let ([e (new (current-arena) (ctx #:i (cast i32 n) #:q (all-q t) #:k (all-k t) #:T (all-A t) #:next 0))])
         (set! doms (cons (cast datum e) doms)))
       (set! t (term-wnf (body-apply (all-bd t) (new-term (Var (all-k t) (cast i32 n) 0 0)))))
       (+= n 1))
@@ -1259,13 +1214,7 @@
 ;; qt is the demand: 0 checks erased code, 1 live code.
 
 (define (new-lhs [t (ptr term)] [n i32] [def datum] [qs (slice u32)] [u bool]) -> (ptr lhsx)
-  (let ([l (cast (ptr lhsx) (alloc (sizeof lhsx)))])
-    (set! (-> l t) t)
-    (set! (-> l n) n)
-    (set! (-> l def) def)
-    (set! (-> l qs) qs)
-    (set! (-> l u) u)
-    l))
+  (new (current-arena) (lhsx #:t t #:n n #:def def #:qs qs #:u u)))
 
 (define (type-cell [ty (ptr term)]) -> (ptr term) (new-term (Var '_ -1 ty 0)))
 
@@ -1538,7 +1487,7 @@
     (term-check (new-lhs (new-term (Ref k 0)) 0 k 0 #f) T 0 (type-of 1) 0 0)
     (if (== v 0)
         (begin (set! book-active #f) 0)
-        (let* ([u (tele-unbind T)] [qs (slice (cast (ptr u32) (alloc (* n 4))) n)] [doms (-> u doms)])
+        (let* ([u (tele-unbind T)] [qs (new (current-arena) u32 n)] [doms (-> u doms)])
           (for ([j u32 0]) (< j n) (+= j 1)
             (set! (@ qs j) (if (pair? doms) (-> (cast (ptr ctx) (car doms)) q) 1))
             (when (pair? doms) (set! doms (cdr doms))))
@@ -1556,7 +1505,7 @@
 (define (checked-value [k datum]) -> (ptr term)
   (let ([d (book-tld k)] [active book-active])
     (unless (and (DefD? d) (!= (defd-v d) 0)) (return 0))
-    (let* ([n (defd-n d)] [u (tele-unbind (defd-T d))] [qs (slice (cast (ptr u32) (alloc (* n 4))) n)] [doms (-> u doms)])
+    (let* ([n (defd-n d)] [u (tele-unbind (defd-T d))] [qs (new (current-arena) u32 n)] [doms (-> u doms)])
       (for ([j u32 0]) (< j n) (+= j 1)
         (set! (@ qs j) (if (pair? doms) (-> (cast (ptr ctx) (car doms)) q) 1))
         (when (pair? doms) (set! doms (cdr doms))))
@@ -1720,13 +1669,7 @@
 (define (dec-loc [c (ptr cursor)]) -> (ptr srcloc)
   (if (== (dec-byte c) 0)
       0
-      (let ([s (cast (ptr srcloc) (alloc (sizeof srcloc)))])
-        (set! (-> s source) (dec-sym c))
-        (set! (-> s line) (dec-u c))
-        (set! (-> s col) (dec-u c))
-        (set! (-> s pos) (dec-u c))
-        (set! (-> s span) (dec-u c))
-        s)))
+      (new (current-arena) (srcloc #:source (dec-sym c) #:line (dec-u c) #:col (dec-u c) #:pos (dec-u c) #:span (dec-u c)))))
 
 (define (enc-located [b (ptr buffer)] [t (ptr term)])
   (set! enc-locs #t)

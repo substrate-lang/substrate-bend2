@@ -282,11 +282,10 @@
 
 ;; ---- layouts ----
 
-(struct lay [kind u32] [words u32] [counts (slice u32)] [box datum] [unbox datum])
+(enum lay-kind uniform-kind word-kind flat-kind)
 
-(const uniform-kind u32 0)
-(const word-kind u32 1)
-(const flat-kind u32 2)
+(struct lay [kind lay-kind] [words u32] [counts (slice u32)] [box datum] [unbox datum])
+
 (const max-flat u32 8)
 
 (define uniform-lay (ptr lay) 0)
@@ -294,14 +293,8 @@
 (define layouts (ptr hash-table) 0)
 (define in-progress datum 0)
 
-(define (new-lay [kind u32] [w u32] [counts (slice u32)]) -> (ptr lay)
-  (let ([l (cast (ptr lay) (arena-alloc home (sizeof lay)))])
-    (set! (-> l kind) kind)
-    (set! (-> l words) w)
-    (set! (-> l counts) counts)
-    (set! (-> l box) 0)
-    (set! (-> l unbox) 0)
-    l))
+(define (new-lay [kind lay-kind] [w u32] [counts (slice u32)]) -> (ptr lay)
+  (new home (lay #:kind kind #:words w #:counts counts #:box 0 #:unbox 0)))
 
 (define (flat? [l (ptr lay)]) -> bool (== (-> l kind) flat-kind))
 
@@ -330,7 +323,7 @@
   (let* ([k (adt-k t)] [d (book-tld k)])
     (unless (AdtD? d) (return uniform-lay))
     (set! in-progress (cons k in-progress))
-    (let* ([nc (-> (adtd-cs d) length)] [most u32 0] [ok #t] [counts (slice (cast (ptr u32) (arena-alloc home (* nc 4))) nc)])
+    (let* ([nc (-> (adtd-cs d) length)] [most u32 0] [ok #t] [counts (new home u32 nc)])
       (for ([j u32 0]) (< j nc) (+= j 1)
         (let ([fs (fields-of (@ (adtd-cs d) j) t)] [m u32 0])
           (for/each ([f fs])
@@ -364,8 +357,7 @@
   (let ([known (cast (ptr sig) (hash-ref signatures (cast u64 k)))])
     (if (!= known 0)
         known
-        (let ([s (cast (ptr sig) (arena-alloc home (sizeof sig)))] [u (tele-unbind T)] [ds datum 0] [m u32 0]
-              [ps (slice (cast (ptr (ptr lay)) (arena-alloc home (* n 4))) n)])
+        (let ([s (new home sig)] [u (tele-unbind T)] [ds datum 0] [m u32 0] [ps (new home (ptr lay) n)])
           (set! ds (-> u doms))
           (for ([j u32 0]) (< j n) (+= j 1)
             (cond [(pair? ds)
@@ -423,13 +415,12 @@
 
 (struct branch [number u32] [word bool] [vs (slice datum)] [then (ptr ir)])
 
-(define (new-ir [c ir]) -> (ptr ir)
-  (let ([p (cast (ptr ir) (arena-alloc (current-arena) (sizeof ir)))]) (set! (@ p) c) p))
+(define (new-ir [c ir]) -> (ptr ir) (new (current-arena) c))
 
 (define (lit [x i64]) -> (ptr ir) (new-ir (Lit x)))
 
-(define (ir-array [n u32]) -> (slice (ptr ir)) (slice (cast (ptr (ptr ir)) (arena-alloc (current-arena) (* n 4))) n))
-(define (sym-array [n u32]) -> (slice datum) (slice (cast (ptr datum) (arena-alloc (current-arena) (* n 4))) n))
+(define (ir-array [n u32]) -> (slice (ptr ir)) (new (current-arena) (ptr ir) n))
+(define (sym-array [n u32]) -> (slice datum) (new (current-arena) datum n))
 
 (define (ir-words [c (ptr ir)]) -> u32
   (match c
@@ -485,13 +476,7 @@
 (define erased datum '%erased)
 
 (define (new-lfn [parent (ptr lfn)]) -> (ptr lfn)
-  (let ([f (cast (ptr lfn) (arena-alloc (current-arena) (sizeof lfn)))])
-    (set! (-> f parent) parent)
-    (set! (-> f locals) (make-table))
-    (set! (-> f captured) nil)
-    (set! (-> f caps) nil)
-    (set! (-> f ncap) 0)
-    f))
+  (new (current-arena) (lfn #:parent parent #:locals (make-table) #:captured nil #:caps nil #:ncap 0)))
 
 (define (binding [l (ptr lay)] [syms datum]) -> datum (cons (cast datum l) syms))
 (define (b-lay [b datum]) -> (ptr lay) (cast (ptr lay) (car b)))
@@ -764,7 +749,7 @@
         (let* ([k (adt-k adt)] [total (-> (adtd-cs (book-adt adt 0)) length)]
                [kind (cond [(flat? al) 3] [(nat-family? k) 1] [(== k u32-family) 2] [else 0])]
                [cs (cases x)] [arms (-> cs arms)] [na (length arms)]
-               [bs (slice (cast (ptr (ptr branch)) (arena-alloc (current-arena) (* na 4))) na)] [j u32 0])
+               [bs (new (current-arena) (ptr branch) na)] [j u32 0])
           (for/each ([arm arms])
             (let ([mt (cast (ptr term) arm)])
               (set! (@ bs j) (branch-ir f (mat-k mt) (mat-h mt) (cdr args) adt sl kind (b-syms a) want)))
@@ -775,7 +760,7 @@
 (define (branch-ir [f (ptr lfn)] [k datum] [h (ptr term)] [rest datum] [adt (ptr term)] [sl (ptr lay)] [kind i32]
                    [ss datum] [want (ptr lay)]) -> (ptr branch)
   (let ([fs (fields-of (book-ctr k) adt)] [bound nil] [loaded nil] [n u32 0]
-        [b (cast (ptr branch) (arena-alloc (current-arena) (sizeof branch)))]
+        [b (new (current-arena) branch)]
         [w (if (and (== kind 3) (> (-> sl counts length) 1)) (cdr ss) ss)])
     (for/each ([f fs])
       (unless (== (dom-q f) 0)
@@ -1043,12 +1028,7 @@
 (struct spare [at datum] [n u32] [used bool] [next (ptr spare)])
 
 (define (new-spare [at datum] [n u32] [next (ptr spare)]) -> (ptr spare)
-  (let ([s (cast (ptr spare) (arena-alloc (current-arena) (sizeof spare)))])
-    (set! (-> s at) at)
-    (set! (-> s n) n)
-    (set! (-> s used) #f)
-    (set! (-> s next) next)
-    s))
+  (new (current-arena) (spare #:at at #:n n #:used #f #:next next)))
 
 (define (pending [sp (ptr spare)]) -> (ptr spare)
   (if (== sp 0)

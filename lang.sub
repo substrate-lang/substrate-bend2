@@ -57,12 +57,7 @@
   (define home (ptr arena) 0)
   (define generation u32 1)
 
-  (define (new-kind [what u32] [n u32] [g u32]) -> (ptr kind)
-    (let ([k (cast (ptr kind) (arena-alloc home (sizeof kind)))])
-      (set! (-> k what) what)
-      (set! (-> k n) n)
-      (set! (-> k g) g)
-      k))
+  (define (new-kind [what u32] [n u32] [g u32]) -> (ptr kind) (new home (kind #:what what #:n n #:g g)))
 
   (define (kind! [name datum] [what u32] [n u32] [g u32])
     (hash-set! kinds (cast u64 name) (cast u32 (new-kind what n g)))
@@ -103,8 +98,7 @@
            [known (cast (ptr idinfo) (hash-ref ids key))])
       (if (and (!= known 0) (or (!= (-> known what) 0) (== (-> known generation) generation)))
           known
-          (let ([info (cast (ptr idinfo) (arena-alloc home (sizeof idinfo)))] [name (identifier-name id)])
-            (set! (-> info what) 0)
+          (let ([info (new home idinfo)] [name (identifier-name id)])
             (set! (-> info name) name)
             (set! (-> info generation) generation)
             (unless (== name 0)
@@ -159,12 +153,7 @@
   (struct local [k datum] [i i32] [hidden bool] [next (ptr local)])
 
   (define (bind [ev (ptr local)] [k datum] [i i32] [hidden bool]) -> (ptr local)
-    (let ([l (cast (ptr local) (arena-alloc (current-arena) (sizeof local)))])
-      (set! (-> l k) k)
-      (set! (-> l i) i)
-      (set! (-> l hidden) hidden)
-      (set! (-> l next) ev)
-      l))
+    (new (current-arena) (local #:k k #:i i #:hidden hidden #:next ev)))
 
   (define (local-of [ev (ptr local)] [k datum]) -> (ptr local)
     (while (!= ev 0)
@@ -288,12 +277,7 @@
 
   (struct spec [q u32] [x datum] [A datum])
 
-  (define (new-spec [q u32] [x datum] [A datum]) -> (ptr spec)
-    (let ([s (cast (ptr spec) (arena-alloc (current-arena) (sizeof spec)))])
-      (set! (-> s q) q)
-      (set! (-> s x) x)
-      (set! (-> s A) A)
-      s))
+  (define (new-spec [q u32] [x datum] [A datum]) -> (ptr spec) (new (current-arena) (spec #:q q #:x x #:A A)))
 
   (define (named-symbol? [d datum] [name datum]) -> bool (and (identifier? d) (== (syntax-e d) name)))
 
@@ -644,13 +628,7 @@
   (define template-read bool #f)
 
   (define (new-tmpl [m u32] [n u32] [T (ptr term)] [v (ptr term)] [where datum]) -> (ptr tmpl)
-    (let ([t (cast (ptr tmpl) (arena-alloc home (sizeof tmpl)))])
-      (set! (-> t m) m)
-      (set! (-> t n) n)
-      (set! (-> t T) T)
-      (set! (-> t v) v)
-      (set! (-> t where) where)
-      t))
+    (new home (tmpl #:m m #:n n #:T T #:v v #:where where)))
 
   (define (template-of [k datum]) -> (ptr tmpl)
     (let ([known (cast (ptr tmpl) (hash-ref templates (cast u64 k)))] [nk (ptr kind) 0])
@@ -783,7 +761,7 @@
       (set! (-> c bytes) (datum->bytes (car v)))
       (set! (-> c at) 0)
       (set! (-> c locs) #f)
-      (set! (-> c names) (slice (cast (ptr datum) (arena-alloc (current-arena) (* n 4))) n))
+      (set! (-> c names) (new (current-arena) datum n))
       (for ([j u32 0]) (< j n) (+= j 1)
         (set! (@ (-> c names) j) (car names))
         (set! names (cdr names)))
@@ -796,7 +774,7 @@
       (case (dec-byte (& c))
         [(1)
          (let* ([n (dec-u (& c))] [g (dec-u (& c))] [T (decoded (& c))] [nc (dec-u (& c))]
-                [cs (slice (cast (ptr (ptr tld)) (arena-alloc (current-arena) (* nc 4))) nc)])
+                [cs (new (current-arena) (ptr tld) nc)])
            (for ([j u32 0]) (< j nc) (+= j 1)
              (let* ([k (dec-sym (& c))] [m (dec-u (& c))] [ct (decoded (& c))])
                (set! (@ cs j) (new-tld (CtrD k m ct)))))
@@ -886,7 +864,7 @@
         (set! (@ cts j) (read-arrow (append ps (constructor-fields (car c))) tip 0 (loc s)))
         (set! c (cdr c)))
       (in-module-arena!)
-      (let ([T (resolved (canonical T0))] [ctrs (slice (cast (ptr (ptr tld)) (arena-alloc (current-arena) (* nc 4))) nc)] [b (make-buffer)]
+      (let ([T (resolved (canonical T0))] [ctrs (new (current-arena) (ptr tld) nc)] [b (make-buffer)]
             [facts nil] [read cts])
         (set! cts (term-array nc))
         (set! c cs)
