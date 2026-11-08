@@ -125,9 +125,9 @@
                          "U32.is_le" "U32.is_gt" "U32.is_ge" "U32.is_zero" "U32.to_nat" "U32.from_nat" "U32.div"
                          "U32.mod")])
     (for ([j u32 0]) (< j 24) (+= j 1)
-      (hash-set! prims (cast u64 (base-name (@ names j))) (+ j 1)))))
+      (hash-set! prims (cast u64 (base-name (@ names j))) j))))
 
-(define (prim-of [k datum]) -> i32 (- (cast i32 (hash-ref prims (cast u64 k))) 1))
+(define (prim-of [k datum]) -> i32 (let ([j (hash-find prims (cast u64 k))]) (if (== j 0) -1 (cast i32 (@ j)))))
 
 (define (word-value [t (ptr term)]) -> i64
   (let ([v i64 0] [bit i64 1] [x (term-strip t)])
@@ -909,13 +909,13 @@
 ;; value for a parameter, that parameter is owned rather than borrowed. A definition that calls
 ;; something not compiled yet (a law filled in later) owns all of its parameters.
 
-;; Each definition's mask of borrowed parameters, plus 1.
+;; Each definition's mask of borrowed parameters.
 (define borrows (ptr hash-table) 0)
 
 (define (borrow-mask [k datum]) -> u32
-  (let ([m (hash-ref borrows (cast u64 k))]) (if (== m 0) 0 (- m 1))))
+  (let ([m (hash-find borrows (cast u64 k))]) (if (== m 0) 0 (@ m))))
 
-(define (set-borrow-mask! [k datum] [m u32]) (hash-set! borrows (cast u64 k) (+ m 1)))
+(define (set-borrow-mask! [k datum] [m u32]) (hash-set! borrows (cast u64 k) m))
 
 (define (lent? [k datum] [j u32]) -> bool (and (< j 32) (!= (bit-and (borrow-mask k) (<< (cast u32 1) j)) 0)))
 
@@ -971,7 +971,7 @@
 
 (define (calls-unmade? [c (ptr ir)]) -> bool
   (match c
-    [(Call _ xs _ key) (or (== (hash-ref borrows (cast u64 key)) 0) (calls-unmade-any? xs))]
+    [(Call _ xs _ key) (or (== (hash-find borrows (cast u64 key)) 0) (calls-unmade-any? xs))]
     [(Values xs) (calls-unmade-any? xs)]
     [(Prim _ xs) (calls-unmade-any? xs)]
     [(Make _ xs) (calls-unmade-any? xs)]
