@@ -634,7 +634,7 @@
 (define (ctrs-shown [d (ptr tld)]) -> datum
   (let ([b (make-buffer)] [s datum 0] [cs (adtd-cs d)])
     (for ([j u32 0]) (< j (-> cs length)) (+= j 1)
-      (when (> j 0) (buffer-add-byte! (& b) 32))
+      (when (> j 0) (buffer-add-byte! (& b) #\space))
       (add-datum! (& b) (short (ctrd-k (@ cs j)))))
     (set! s (string->datum (buffer-string (& b))))
     (buffer-free! (& b))
@@ -741,7 +741,7 @@
     (if (!= known 0)
         (cast datum known)
         (let* ([name (symbol->string k)] [n (-> name length)] [i u32 0] [s datum 0] [saved (use-arena module-arena)])
-          (while (and (< i n) (!= (@ name i) 58)) (+= i 1))
+          (while (and (< i n) (!= (@ name i) #\:)) (+= i 1))
           (set! s (string->datum (if (< i n) (slice name (+ i 1)) name)))
           (use-arena saved)
           (hash-set! shorts (cast u64 k) (cast u32 s))
@@ -759,119 +759,119 @@
     [(Var k _ _ _) (add-datum! b k)]
     [(App _ _ _)
      (let ([hx (term-unapply t)])
-       (buffer-add-byte! b 40)
+       (buffer-add-byte! b #\()
        (term-write b (term-of (car hx)))
        (write-each b (cdr hx))
-       (buffer-add-byte! b 41))]
+       (buffer-add-byte! b #\)))]
     [(Ref k _) (add-datum! b (short k))]
     [(Lam k _ f _ _)
      (buffer-add-string! b "(fn (")
      (add-datum! b k)
      (buffer-add-string! b ") ")
      (term-write b f)
-     (buffer-add-byte! b 41)]
+     (buffer-add-byte! b #\))]
     [(Nat _ _ n _)
      (if (== n 0)
          (buffer-add-string! b "Zero")
-         (begin (buffer-add-string! b "(nat ") (write-to b (make-integer (cast i64 n)) 1) (buffer-add-byte! b 41)))]
+         (begin (buffer-add-string! b "(nat ") (write-to b (make-integer (cast i64 n)) 1) (buffer-add-byte! b #\))))]
     [(Ctr k x _)
      (let ([m (nat-number t)])
        (cond [(== m 0) (buffer-add-string! b "Zero")]
-             [(> m 0) (buffer-add-string! b "(nat ") (write-to b (make-integer m) 1) (buffer-add-byte! b 41)]
+             [(> m 0) (buffer-add-string! b "(nat ") (write-to b (make-integer m) 1) (buffer-add-byte! b #\))]
              [(== (-> x length) 0) (add-datum! b (short k))]
-             [else (buffer-add-byte! b 40) (add-datum! b (short k)) (write-array b x) (buffer-add-byte! b 41)]))]
+             [else (buffer-add-byte! b #\() (add-datum! b (short k)) (write-array b x) (buffer-add-byte! b #\))]))]
     [(All _ _ _ _ _ _ _)
      (buffer-add-string! b "(->")
      (let ([u t])
        (while (All? u)
          (match u
            [(All q k _ A f _ _)
-            (buffer-add-byte! b 32)
+            (buffer-add-byte! b #\space)
             (if (and (== k '_) (== q 1))
                 (term-write b A)
                 (begin
-                  (buffer-add-byte! b 91)
+                  (buffer-add-byte! b #\[)
                   (buffer-add-string! b (quant-show q))
                   (add-datum! b k)
                   (buffer-add-string! b " : ")
                   (term-write b A)
-                  (buffer-add-byte! b 93)))
+                  (buffer-add-byte! b #\])))
             (set! u f)]
            [_ 0]))
-       (buffer-add-byte! b 32)
+       (buffer-add-byte! b #\space)
        (term-write b u)
-       (buffer-add-byte! b 41))]
+       (buffer-add-byte! b #\)))]
     [(ADT k x r _)
-     (unless (null? r) (buffer-add-byte! b 40))
+     (unless (null? r) (buffer-add-byte! b #\())
      (if (== (-> x length) 0)
          (add-datum! b (short k))
-         (begin (buffer-add-byte! b 40) (add-datum! b (short k)) (write-array b x) (buffer-add-byte! b 41)))
+         (begin (buffer-add-byte! b #\() (add-datum! b (short k)) (write-array b x) (buffer-add-byte! b #\))))
      (unless (null? r)
        (buffer-add-string! b " #:without")
        (let ([l r])
          (for/each ([x l])
-           (buffer-add-byte! b 32)
+           (buffer-add-byte! b #\space)
            (add-datum! b (short x))))
-       (buffer-add-byte! b 41))]
+       (buffer-add-byte! b #\)))]
     [(Typ g _)
      (let ([h (term-strip g)])
        (cond [(qua-is? h 1) (buffer-add-string! b "Type")]
              [(qua-is? h 2) (buffer-add-string! b "Data")]
-             [else (buffer-add-string! b "(Kind ") (term-write b g) (buffer-add-byte! b 41)]))]
+             [else (buffer-add-string! b "(Kind ") (term-write b g) (buffer-add-byte! b #\))]))]
     [(Qnt _) (buffer-add-string! b "Quant")]
     [(Qua q _) (buffer-add-string! b (case q [(0) "&0"] [(1) "&1"] [else "&2"]))]
-    [(Min a c _) (buffer-add-string! b "(meet ") (term-write b a) (buffer-add-byte! b 32) (term-write b c) (buffer-add-byte! b 41)]
+    [(Min a c _) (buffer-add-string! b "(meet ") (term-write b a) (buffer-add-byte! b #\space) (term-write b c) (buffer-add-byte! b #\))]
     [(Mat k h m _)
      (buffer-add-string! b "(split ")
      (add-datum! b (short k))
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b h)
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b m)
-     (buffer-add-byte! b 41)]
+     (buffer-add-byte! b #\))]
     [(Efq _) (buffer-add-string! b "(absurd)")]
     [(Eql a c T _)
      (buffer-add-string! b "(== ")
      (term-write b a)
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b c)
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b T)
-     (buffer-add-byte! b 41)]
+     (buffer-add-byte! b #\))]
     [(Rfl _) (buffer-add-string! b "refl")]
     [(Rwt e p f _)
      (buffer-add-string! b "(rewrite ")
      (term-write b e)
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b p)
-     (buffer-add-byte! b 32)
+     (buffer-add-byte! b #\space)
      (term-write b f)
-     (buffer-add-byte! b 41)]
-    [(Hol k _) (buffer-add-string! b "(? ") (add-datum! b k) (buffer-add-byte! b 41)]
-    [(Ann x T _) (buffer-add-string! b "(the ") (term-write b T) (buffer-add-byte! b 32) (term-write b x) (buffer-add-byte! b 41)]
+     (buffer-add-byte! b #\))]
+    [(Hol k _) (buffer-add-string! b "(? ") (add-datum! b k) (buffer-add-byte! b #\))]
+    [(Ann x T _) (buffer-add-string! b "(the ") (term-write b T) (buffer-add-byte! b #\space) (term-write b x) (buffer-add-byte! b #\))]
     [(Let bs f _ _)
      (buffer-add-string! b "(let (")
      (for ([j u32 0]) (< j (-> bs length)) (+= j 1)
-       (when (> j 0) (buffer-add-byte! b 32))
-       (buffer-add-byte! b 91)
+       (when (> j 0) (buffer-add-byte! b #\space))
+       (buffer-add-byte! b #\[)
        (add-datum! b (-> (@ bs j) k))
-       (buffer-add-byte! b 32)
+       (buffer-add-byte! b #\space)
        (term-write b (-> (@ bs j) v))
-       (buffer-add-byte! b 93))
+       (buffer-add-byte! b #\]))
      (buffer-add-string! b ") ")
      (term-write b f)
-     (buffer-add-byte! b 41)]
+     (buffer-add-byte! b #\))]
     [(Sub _ _ _ f _) (term-write b f)]
-    [_ (buffer-add-byte! b 63)]))
+    [_ (buffer-add-byte! b #\?)]))
 
 (define (write-each [b (ptr buffer)] [l datum])
   (for/each ([x l])
-    (buffer-add-byte! b 32)
+    (buffer-add-byte! b #\space)
     (term-write b (term-of x))))
 
 (define (write-array [b (ptr buffer)] [x (slice (ptr term))])
   (for ([j u32 0]) (< j (-> x length)) (+= j 1)
-    (buffer-add-byte! b 32)
+    (buffer-add-byte! b #\space)
     (term-write b (@ x j))))
 
 (define (nat-number [t (ptr term)]) -> i64
