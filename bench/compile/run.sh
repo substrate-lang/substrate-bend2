@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Times checking and compiling the module proofs.sh writes, RUNS times (1 by default), each from a copy of a cache that
-# holds bend2's own modules but not that module. SUBSTRATE names the substrate command: substrate by default, or a
-# checkout's bin/substrate.
+# Times checking and compiling the module that proofs.sh writes, RUNS times (1 by default). Each run starts from a copy
+# of a cache that holds bend2's own modules but not that module. SUBSTRATE names the substrate command, which is
+# substrate by default or a checkout's bin/substrate.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
