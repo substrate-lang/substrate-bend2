@@ -1,3 +1,4 @@
 (package bend2-bench
   (version "0.9.0")
-  (dependencies (bend2 (path ".."))))
+  (dependencies (bend2 (path "..")))
+  (programs (warm "compile/warm.sub")))
