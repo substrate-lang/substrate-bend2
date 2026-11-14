@@ -1,4 +1,5 @@
 (package bend2
   (version "0.11.0")
   (substrate "0.11.0")
-  (exports base core lang lower runtime))
+  (exports base core lang lower runtime)
+  (tests "tests/*.sub"))
