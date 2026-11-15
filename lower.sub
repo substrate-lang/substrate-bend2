@@ -37,8 +37,8 @@
   (set! inlines (make-table))
   (set! borrows (make-table))
   (set! in-progress nil)
-  (set! uniform-lay (new-lay .uniform-kind 1 0))
-  (set! word-lay (new-lay .word-kind 1 0))
+  (set! uniform-lay (new-lay .uniform 1 0))
+  (set! word-lay (new-lay .word 1 0))
   (prims-start! prefix))
 
 (define (lowered-forms!) -> datum
@@ -282,7 +282,7 @@
 
 ;; ---- layouts ----
 
-(enum lay-kind uniform-kind word-kind flat-kind)
+(enum lay-kind uniform word flat)
 
 (struct lay [kind lay-kind] [words u32] [counts (slice u32)] [box datum] [unbox datum])
 
@@ -296,7 +296,7 @@
 (define (new-lay [kind lay-kind] [w u32] [counts (slice u32)]) -> (ptr lay)
   (new home (lay #:kind kind #:words w #:counts counts #:box 0 #:unbox 0)))
 
-(define (flat? [l (ptr lay)]) -> bool (== (-> l kind) .flat-kind))
+(define (flat? [l (ptr lay)]) -> bool (== (-> l kind) .flat))
 
 (define (layout-of [T (ptr term)]) -> (ptr lay)
   (if (== T 0)
@@ -346,7 +346,7 @@
     (let* ([k (cast u64 (string->symbol (format-message "~a" `(,key))))] [known (cast (ptr lay) (hash-ref shapes k))])
       (if (!= known 0)
           known
-          (let ([l (new-lay .flat-kind w counts)])
+          (let ([l (new-lay .flat w counts)])
             (hash-set! shapes k (cast u32 l))
             l)))))
 
@@ -486,7 +486,7 @@
   (let ([syms nil])
     (for ([j u32 0]) (< j (-> l words)) (+= j 1)
       (let ([s (local! k)])
-        (unless (== (-> l kind) .uniform-kind) (plain! s))
+        (unless (== (-> l kind) .uniform) (plain! s))
         (set! syms (cons s syms))))
     (binding l (reverse syms))))
 

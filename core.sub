@@ -3,11 +3,10 @@
 
 (require-unqualified compiler/macros)
 
-(provide term Var Ref Sub Let Typ Qnt Qua Min All Lam App ADT Ctr Nat Mat Efq Eql Rfl Rwt Hol Ann Match
-         pat PVar PCtr row binder new-term new-pat new-row term-array binder-array
+(provide term pat row binder new-term new-pat new-row term-array binder-array
          Var? Ref? All? Lam? App? ADT? Ctr? Nat? Ann? Match? term-s term-strip term-force nat-z nat-c nat-n nat-ctr
          short term-show-string flatten-definition canonical higher
-         tld AdtD CtrD DefD book-start! set-lookup! book-tld book-ctr ctrd-k ctrd-n ctrd-T adtd-n defd-n defd-T defd-v
+         tld book-start! set-lookup! book-tld book-ctr ctrd-k ctrd-n ctrd-T adtd-n defd-n defd-T defd-v
          validate-adt! validate-def! validate-fill! infer-closed begin-check! end-check! where! where
          fresh! reset-fresh! bend-error-at in-module-arena! check-in-scratch! new-tld
          cursor enc-start! enc-names enc-u enc-i enc-sym enc-term dec-byte dec-u dec-i dec-sym dec-term
