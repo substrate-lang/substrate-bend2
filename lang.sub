@@ -175,7 +175,7 @@
   (define (read-identifier [e datum] [ev (ptr local)]) -> (ptr term)
     (let ([v (local-of ev (syntax-e e))])
       (if (!= v 0)
-          (new-term (Var (syntax-e e) (-> v i) 0 (loc e)))
+          (new-term (.Var (syntax-e e) (-> v i) 0 (loc e)))
           (let ([info (classify e)])
             (cond [(> (-> info what) 10) (read-keyword (- (-> info what) 10) e (list1 e) ev)]
                   [(> (-> info what) 0) (read-name info e e nil ev)]
@@ -183,7 +183,7 @@
 
   (define (apps [s (ptr srcloc)] [f (ptr term)] [args datum] [ev (ptr local)]) -> (ptr term)
     (for/each ([arg args])
-      (set! f (new-term (App f (read-term arg ev) s))))
+      (set! f (new-term (.App f (read-term arg ev) s))))
     f)
 
   (define (read-form [e datum] [l datum] [ev (ptr local)]) -> (ptr term)
@@ -191,7 +191,7 @@
       (if (identifier? h)
           (let ([v (local-of ev (syntax-e h))])
             (if (!= v 0)
-                (apps (loc e) (new-term (Var (syntax-e h) (-> v i) 0 (loc h))) (cdr l) ev)
+                (apps (loc e) (new-term (.Var (syntax-e h) (-> v i) 0 (loc h))) (cdr l) ev)
                 (let ([info (classify h)])
                   (cond [(> (-> info what) 10) (read-keyword (- (-> info what) 10) e l ev)]
                         [(> (-> info what) 0) (read-name info h e (cdr l) ev)]
@@ -201,24 +201,24 @@
   (define (read-name [info (ptr idinfo)] [h datum] [e datum] [args datum] [ev (ptr local)]) -> (ptr term)
     (let ([name (-> info name)])
       (case (-> info what)
-        [(1) (apps (loc e) (new-term (Ref name (loc h))) args ev)]
-        [(4) (set! template-read #t) (apps (loc e) (new-term (Ref name (loc h))) args ev)]
+        [(1) (apps (loc e) (new-term (.Ref name (loc h))) args ev)]
+        [(4) (set! template-read #t) (apps (loc e) (new-term (.Ref name (loc h))) args ev)]
         [(2)
          (if (and (null? args) (> (-> info n) 0))
-             (new-term (Ref name (loc e)))
+             (new-term (.Ref name (loc e)))
              (let* ([given (length args)] [fill (if (== (+ given (-> info g)) (-> info n)) (-> info g) 0)]
                     [n (+ given fill)] [xs (term-array n)] [a args])
-               (for ([j u32 0]) (< j fill) (+= j 1) (set! (@ xs j) (new-term (Qua 1 (loc e)))))
+               (for ([j u32 0]) (< j fill) (+= j 1) (set! (@ xs j) (new-term (.Qua 1 (loc e)))))
                (for ([j u32 fill]) (< j n) (+= j 1)
                  (set! (@ xs j) (read-term (car a) ev))
                  (set! a (cdr a)))
-               (new-term (ADT name xs nil (loc e)))))]
+               (new-term (.ADT name xs nil (loc e)))))]
         [else
          (let* ([n (length args)] [xs (term-array n)] [a args])
            (for ([j u32 0]) (< j n) (+= j 1)
              (set! (@ xs j) (read-term (car a) ev))
              (set! a (cdr a)))
-           (new-term (Ctr name xs (loc e))))])))
+           (new-term (.Ctr name xs (loc e))))])))
 
   (define (parts [e datum] [l datum] [n u32] [expected string]) -> datum
     (unless (== (length l) (+ n 1)) (bend-fail e expected nil))
@@ -236,32 +236,32 @@
       [(4) (bend-fail e "expected a match only as a body, a definition's or a case's: a term splits with split" nil)]
       [(5) (let* ([p (parts e l 3 "expected (split C h m)")] [c (car p)])
              (unless (and (identifier? c) (== (-> (classify c) what) 3)) (bend-fail c "expected a constructor" nil))
-             (new-term (Mat (-> (classify c) name) (read-term (cadr p) ev) (read-term (caddr p) ev) (loc e))))]
-      [(6) (new-term (Efq (loc e)))]
+             (new-term (.Mat (-> (classify c) name) (read-term (cadr p) ev) (read-term (caddr p) ev) (loc e))))]
+      [(6) (new-term (.Efq (loc e)))]
       [(7) (let ([p (parts e l 3 "expected (== a b T)")])
-             (new-term (Eql (read-term (car p) ev) (read-term (cadr p) ev) (read-term (caddr p) ev) (loc e))))]
-      [(8) (new-term (Rfl (loc e)))]
+             (new-term (.Eql (read-term (car p) ev) (read-term (cadr p) ev) (read-term (caddr p) ev) (loc e))))]
+      [(8) (new-term (.Rfl (loc e)))]
       [(9) (let* ([p (parts e l 3 "expected (rewrite e P f)")] [i (fresh!)] [j (fresh!)]
                   [pev (bind (bind ev '_ i #f) 'e j #t)])
-             (new-term (Rwt (read-term (car p) ev)
-                            (new-term (Lam '_ i (new-term (Lam 'e j (read-term (cadr p) pev) 0 (loc e))) 0 (loc e)))
+             (new-term (.Rwt (read-term (car p) ev)
+                            (new-term (.Lam '_ i (new-term (.Lam 'e j (read-term (cadr p) pev) 0 (loc e))) 0 (loc e)))
                             (read-term (caddr p) ev)
                             (loc e))))]
       [(10) (let ([p (parts e l 2 "expected (the T x)")])
-              (new-term (Ann (read-term (cadr p) ev) (read-term (car p) ev) (loc e))))]
+              (new-term (.Ann (read-term (cadr p) ev) (read-term (car p) ev) (loc e))))]
       [(11) (let ([p (parts e l 1 "expected (? name)")])
               (unless (identifier? (car p)) (bend-fail e "expected (? name)" nil))
-              (new-term (Hol (syntax-e (car p)) (loc e))))]
+              (new-term (.Hol (syntax-e (car p)) (loc e))))]
       [(12) (read-nat e l)]
-      [(13) (let ([p (parts e l 1 "expected (Kind g)")]) (new-term (Typ (read-term (car p) ev) (loc e))))]
+      [(13) (let ([p (parts e l 1 "expected (Kind g)")]) (new-term (.Typ (read-term (car p) ev) (loc e))))]
       [(14) (let ([p (parts e l 2 "expected (meet a b)")])
-              (new-term (Min (read-term (car p) ev) (read-term (cadr p) ev) (loc e))))]
-      [(15) (new-term (Typ (new-term (Qua 1 (loc e))) (loc e)))]
-      [(16) (new-term (Typ (new-term (Qua 2 (loc e))) (loc e)))]
-      [(17) (new-term (Qnt (loc e)))]
-      [(18) (new-term (Qua 0 (loc e)))]
-      [(19) (new-term (Qua 1 (loc e)))]
-      [(20) (new-term (Qua 2 (loc e)))]
+              (new-term (.Min (read-term (car p) ev) (read-term (cadr p) ev) (loc e))))]
+      [(15) (new-term (.Typ (new-term (.Qua 1 (loc e))) (loc e)))]
+      [(16) (new-term (.Typ (new-term (.Qua 2 (loc e))) (loc e)))]
+      [(17) (new-term (.Qnt (loc e)))]
+      [(18) (new-term (.Qua 0 (loc e)))]
+      [(19) (new-term (.Qua 1 (loc e)))]
+      [(20) (new-term (.Qua 2 (loc e)))]
       [else (bend-fail e "this is not a Bend term" nil)]))
 
   (define (last-of [l datum]) -> datum
@@ -273,7 +273,7 @@
         (read-term body ev)
         (let ([x (car xs)] [i (fresh!)])
           (unless (identifier? x) (bend-fail x "expected (fn (x ...) t)" nil))
-          (new-term (Lam (syntax-e x) i (read-fn (cdr xs) body (bind ev (syntax-e x) i #f)) 0 (loc x))))))
+          (new-term (.Lam (syntax-e x) i (read-fn (cdr xs) body (bind ev (syntax-e x) i #f)) 0 (loc x))))))
 
   (struct spec [q u32] [x datum] [A datum])
 
@@ -308,7 +308,7 @@
                [k (if named (syntax-e (-> sp x)) '_)])
           (when (== (-> sp q) 3)
             (bend-fail (-> sp x) "expected ~ only on a def's first parameters, which make it a template" nil))
-          (new-term (All (-> sp q) k i (read-term (-> sp A) ev)
+          (new-term (.All (-> sp q) k i (read-term (-> sp A) ev)
                          (read-arrow (cdr specs) B (bind ev k i (not named)) s) 0
                          (if named (loc (-> sp x)) s))))))
 
@@ -330,29 +330,29 @@
           (set! (-> (@ ws j) v) (read-term v ev))
           (set! bev (bind bev (syntax-e x) (-> (@ ws j) i) #f)))
         (set! bs (cdr bs)))
-      (new-term (Let ws (read-term (caddr l) bev) 0 (loc e)))))
+      (new-term (.Let ws (read-term (caddr l) bev) 0 (loc e)))))
 
   (define (read-nat [e datum] [l datum]) -> (ptr term)
     (let ([p (parts e l 1 "expected (nat n), n a natural number")])
       (unless (and (integer? (syntax-e (car p))) (>= (integer-value (syntax-e (car p))) 0)
                    (< (integer-value (syntax-e (car p))) 4294967296))
         (bend-fail e "expected (nat n), n a natural number below 2^32" nil))
-      (new-term (Nat (constructor-named e 'Zero) (constructor-named e 'Succ)
+      (new-term (.Nat (constructor-named e 'Zero) (constructor-named e 'Succ)
                      (cast u32 (integer-value (syntax-e (car p)))) (loc e)))))
 
   (define (read-u32 [e datum]) -> (ptr term)
     (let ([n (integer-value (syntax-e e))])
       (unless (and (>= n 0) (< n 4294967296)) (bend-fail e "expected a U32, a number from 0 to 4294967295" nil))
       (let* ([wcon (constructor-named e 'WCon)] [one (constructor-named e 'True)]
-             [nought (constructor-named e 'False)] [w (new-term (Ctr (constructor-named e 'WNil) 0 (loc e)))]
+             [nought (constructor-named e 'False)] [w (new-term (.Ctr (constructor-named e 'WNil) 0 (loc e)))]
              [xs (term-array 1)])
         (for ([i i32 31]) (>= i 0) (-= i 1)
           (let ([ys (term-array 2)])
-            (set! (@ ys 0) (new-term (Ctr (if (!= (bit-and (>> n i) 1) 0) one nought) 0 (loc e))))
+            (set! (@ ys 0) (new-term (.Ctr (if (!= (bit-and (>> n i) 1) 0) one nought) 0 (loc e))))
             (set! (@ ys 1) w)
-            (set! w (new-term (Ctr wcon ys (loc e))))))
+            (set! w (new-term (.Ctr wcon ys (loc e))))))
         (set! (@ xs 0) w)
-        (new-term (Ctr (constructor-named e 'u32) xs (loc e))))))
+        (new-term (.Ctr (constructor-named e 'u32) xs (loc e))))))
 
   (define (constructor-named [e datum] [k datum]) -> datum
     (let* ([id (datum->syntax e k e)] [info (classify id)])
@@ -395,7 +395,7 @@
                 (set! rev (bind rev (syntax-e x) j #f))
                 (set! binds (cons `(,x ,(cdr plus) ,(make-integer j)) binds)))))
           (set! rows (cons (cast datum (new-row (reverse ps) (plus-wrap (read-body (cadr r) rev) (reverse binds)))) rows))))
-      (new-term (Match (reverse es) (reverse rows) (loc e)))))
+      (new-term (.Match (reverse es) (reverse rows) (loc e)))))
 
   (define pluses datum 0)
 
@@ -403,11 +403,11 @@
     (cond [(null? binds) b]
           [(Match? b)
            (let ([es datum 0] [rs datum 0] [s (ptr srcloc) 0] [out nil])
-             (match b [(Match me mr ms) (set! es me) (set! rs mr) (set! s ms)] [_ 0])
+             (match b [(.Match me mr ms) (set! es me) (set! rs mr) (set! s ms)] [_ 0])
              (for/each ([r rs])
                (let ([rw (cast (ptr row) r)])
                  (set! out (cons (cast datum (new-row (-> rw ps) (plus-wrap (-> rw body) binds))) out))))
-             (new-term (Match es (reverse out) s)))]
+             (new-term (.Match es (reverse out) s)))]
           [else
            (let* ([n (length binds)] [ws (binder-array n)] [l binds])
              (for ([j u32 0]) (< j n) (+= j 1)
@@ -415,9 +415,9 @@
                  (set! (-> (@ ws j) k) (syntax-e x))
                  (set! (-> (@ ws j) i) (cast i32 (integer-value (caddr (car l)))))
                  (set! (-> (@ ws j) q) 2)
-                 (set! (-> (@ ws j) v) (new-term (Var (syntax-e x) (cast i32 (integer-value (cadr (car l)))) 0 (loc x)))))
+                 (set! (-> (@ ws j) v) (new-term (.Var (syntax-e x) (cast i32 (integer-value (cadr (car l)))) 0 (loc x)))))
                (set! l (cdr l)))
-             (new-term (Let ws b 0 (term-s b))))]))
+             (new-term (.Let ws b 0 (term-s b))))]))
 
   (struct patread [p (ptr pat)] [ev (ptr local)])
 
@@ -427,14 +427,14 @@
       (cond
         [(identifier? p)
          (let ([info (if (== (syntax-e p) '_) 0 (classify p))])
-           (cond [(== info 0) (set! (-> out p) (new-pat (PVar '_ (fresh!) (loc p))))]
+           (cond [(== info 0) (set! (-> out p) (new-pat (.PVar '_ (fresh!) (loc p))))]
                  [(== (-> info what) 3)
                   (unless (== (-> info n) 0)
                     (bend-fail p "expected a ~a pattern with ~a field~a" `(,(syntax-e p) ,(make-integer (-> info n)) ,(plural (-> info n)))))
-                  (set! (-> out p) (new-pat (PCtr (-> info name) nil (loc p))))]
+                  (set! (-> out p) (new-pat (.PCtr (-> info name) nil (loc p))))]
                  [else
                   (let ([i (fresh!)])
-                    (set! (-> out p) (new-pat (PVar (syntax-e p) i (loc p))))
+                    (set! (-> out p) (new-pat (.PVar (syntax-e p) i (loc p))))
                     (set! (-> out ev) (bind ev (syntax-e p) i #f)))]))]
         [(let ([l (syntax->list p)])
            (and (!= l 0) (pair? l) (identifier? (car l)) (== (keyword-of (car l)) kw-nat)))
@@ -444,16 +444,16 @@
            (set! n (integer-value (syntax-e (cadr l))))
            (if (== (length l) 3)
                (begin (set! pr (read-pattern (caddr l) ev)) (set! q (-> pr p)) (set! (-> out ev) (-> pr ev)))
-               (set! q (new-pat (PCtr (constructor-named p 'Zero) nil (loc p)))))
+               (set! q (new-pat (.PCtr (constructor-named p 'Zero) nil (loc p)))))
            (let ([succ (constructor-named p 'Succ)])
              (while (> n 0)
-               (set! q (new-pat (PCtr succ (list1 (cast datum q)) (loc p))))
+               (set! q (new-pat (.PCtr succ (list1 (cast datum q)) (loc p))))
                (-= n 1)))
            (set! (-> out p) q))]
         [(let ([l (syntax->list p)])
            (and (!= l 0) (== (length l) 2) (named-symbol? (car l) '+) (identifier? (cadr l))))
          (let* ([x (cadr (syntax->list p))] [i (fresh!)])
-           (set! (-> out p) (new-pat (PVar (syntax-e x) i (loc x))))
+           (set! (-> out p) (new-pat (.PVar (syntax-e x) i (loc x))))
            (set! (-> out ev) (bind ev (syntax-e x) i #t))
            (set! pluses (cons (cons x (make-integer i)) pluses)))]
         [else
@@ -470,7 +470,7 @@
                  (let ([pr (read-pattern x rev)])
                    (set! qs (cons (cast datum (-> pr p)) qs))
                    (set! rev (-> pr ev)))))
-             (set! (-> out p) (new-pat (PCtr (-> info name) (reverse qs) (loc p))))
+             (set! (-> out p) (new-pat (.PCtr (-> info name) (reverse qs) (loc p))))
              (set! (-> out ev) rev)))])
       out))
 
@@ -510,7 +510,7 @@
       (for/each ([x xs])
         (let ([i (fresh!)])
           (unless (identifier? x) (bend-fail x "expected a parameter name" nil))
-          (set! vars (cons (cast datum (new-pat (PVar (syntax-e x) i (loc x)))) vars))
+          (set! vars (cons (cast datum (new-pat (.PVar (syntax-e x) i (loc x)))) vars))
           (set! ev (bind ev (syntax-e x) i #f))))
       (set! vars (reverse vars))
       (let ([b (read-body body ev)])
@@ -666,7 +666,7 @@
                            (list1 (short k)))))
             (let ([name (instance k tp xs)])
               (took! m)
-              (new-term (Ref name (term-s t))))))))
+              (new-term (.Ref name (term-s t))))))))
 
   (define (call-fail [t (ptr term)] [form string] [args datum])
     (raise-syntax-error 'bend (format-message form args)
@@ -777,9 +777,9 @@
                 [cs (new (current-arena) (ptr tld) nc)])
            (for ([j u32 0]) (< j nc) (+= j 1)
              (let* ([k (dec-sym (& c))] [m (dec-u (& c))] [ct (decoded (& c))])
-               (set! (@ cs j) (new-tld (CtrD k m ct)))))
-           (new-tld (AdtD n g T cs)))]
-        [(2) (let* ([k (dec-sym (& c))] [m (dec-u (& c))] [ct (decoded (& c))]) (new-tld (CtrD k m ct)))]
+               (set! (@ cs j) (new-tld (.CtrD k m ct)))))
+           (new-tld (.AdtD n g T cs)))]
+        [(2) (let* ([k (dec-sym (& c))] [m (dec-u (& c))] [ct (decoded (& c))]) (new-tld (.CtrD k m ct)))]
         [(3)
          (let* ([n (dec-u (& c))] [T (decoded (& c))] [has (dec-byte (& c))] [v (ptr term) 0])
            (cond [has (set! v (decoded (& c))) (dec-code! name (& c))]
@@ -788,7 +788,7 @@
                     (dec-byte (& fc))
                     (set! v (decoded (& fc)))
                     (dec-code! name (& fc)))])
-           (new-tld (DefD n T v)))]
+           (new-tld (.DefD n T v)))]
         [else 0])))
 
   ;; ---- names and keywords ----
@@ -870,7 +870,7 @@
         (set! c cs)
         (for ([j u32 0]) (< j nc) (+= j 1)
           (set! (@ cts j) (resolved (canonical (@ read j))))
-          (set! (@ ctrs j) (new-tld (CtrD (identifier-name (constructor-name (car c))) (length (constructor-fields (car c)))
+          (set! (@ ctrs j) (new-tld (.CtrD (identifier-name (constructor-name (car c))) (length (constructor-fields (car c)))
                                           (higher (@ cts j)))))
           (set! c (cdr c)))
         (validate-adt! name n g (higher T) ctrs)
