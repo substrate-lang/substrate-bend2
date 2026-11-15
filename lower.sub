@@ -722,7 +722,7 @@
                    rest
                    (new-ir (.Bind (b-syms nb) (to (mkval (binding-ir a) al) bl) rest))))
              (begin (bind! f p erased) (body-ir f (body-apply (lam-bd x) p) (body-apply (all-bd all) p) args want))))]
-      [(Efq? x) (new-ir (.Fail))]
+      [(Efq? x) (new-ir .Fail)]
       [(Mat? x) (match-ir f x xty args want)]
       [(Let? x) (-> (let-ir f x xty args #t want) c)]
       [(pair? args) (body-ir f (eta x xty 1) xty args want)]
@@ -1147,7 +1147,7 @@
   (match c
     [(.Use v) (finish v sp tail)]
     [(.Lit x) (finish (i64-const x) sp tail)]
-    [(.Fail) `(unreachable)]
+    [.Fail `(unreachable)]
     [(.Values xs)
      (let* ([pc (emit-parts xs gamma sp)] [pa (part-args xs (cdr pc) nil)])
        (finish (sequence (car pc) (bound-code (car pa) (if (and (== (-> xs length) 1) (null? (car pa))) (car (cadr pa)) `(values ,@(cadr pa)))))
