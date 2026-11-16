@@ -1,4 +1,4 @@
-;; A session in Bend: each definition is checked as it is entered; a failed one changes nothing.
+;; A session in Bend: each definition is checked as it is entered, and a failed one changes nothing.
 (language bend2)
 (def (double [+ n : Nat]) Nat (Nat.add n n))
 (print (double (nat 21)))

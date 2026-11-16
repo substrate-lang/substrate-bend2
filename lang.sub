@@ -89,7 +89,7 @@
         (let ([v (caddr f)]) (when (and (pair? v) (bytes? (car v))) (set! out (cons v out)))))
       (reverse out)))
 
-  ;; what: 0 for nothing of Bend's, a name's kind, or 10 + k for keyword k.
+  ;; what is 0 for nothing of Bend's, a name's kind, or 10 + k for keyword k.
   (struct idinfo [what u32] [n u32] [g u32] [name datum] [generation u32])
   (define ids (ptr hash-table) 0)
 
@@ -475,8 +475,8 @@
       out))
 
   ;; ---- definitions ----
-  ;; A fact's first byte: 1 a datatype, 2 a constructor, 3 a definition or law, 4 a fill of a law,
-  ;; 5 a template, 6 an instance of a template.
+  ;; A fact's first byte is 1 for a datatype, 2 for a constructor, 3 for a definition or law, 4 for a fill of a law, 5
+  ;; for a template and 6 for an instance of a template.
 
   (define (fact [id datum] [b (ptr buffer)]) -> datum
     (let ([s (bytes->datum (buffer-bytes b))])

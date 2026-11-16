@@ -394,7 +394,7 @@
 (define (cons-code [c datum] [l datum]) -> datum (if (== c 0) l (cons c l)))
 
 ;; ---- a function's code ----
-;; A Case's kind: 0 a node, 1 a Nat, 2 a U32, 3 a flat value.
+;; A Case's kind is 0 for a node, 1 for a Nat, 2 for a U32 and 3 for a flat value.
 
 (variant ir
   [Use [v datum]]

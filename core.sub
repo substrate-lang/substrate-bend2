@@ -19,7 +19,7 @@
 ;; ---- terms ----
 
 (variant term
-  ;; A Var's i: its binder's id, or -1 a share cell, -2 a filled one; v its value.
+  ;; A Var's i is its binder's id, or -1 for a share cell, or -2 for a filled one. v is its value.
   [Var [k datum] [i i32] [v (ptr term)] [s (ptr srcloc)]]
   [Ref [k datum] [s (ptr srcloc)]]
   [Sub [i i32] [v (ptr term)] [p (ptr pat)] [f (ptr term)] [s (ptr srcloc)]]
@@ -1141,7 +1141,7 @@
 
 ;; ---- descent ----
 
-;; 0 if unchanged, 1 if a strict subterm, 2 otherwise.
+;; term-descend gives 0 if unchanged, 1 if a strict subterm, and 2 otherwise.
 (define (term-descend [q u32] [arg (ptr term)] [col (ptr term)]) -> i32
   (when (== q 0) (return 0))
   (let ([a (term-strip arg)] [p (term-strip col)])
@@ -1210,7 +1210,7 @@
     out))
 
 ;; ---- checking ----
-;; qt is the demand: 0 checks erased code, 1 live code.
+;; qt is the demand: 0 checks erased code, and 1 checks live code.
 
 (define (new-lhs [t (ptr term)] [n i32] [def datum] [qs (slice u32)] [u bool]) -> (ptr lhsx)
   (new (current-arena) (lhsx #:t t #:n n #:def def #:qs qs #:u u)))

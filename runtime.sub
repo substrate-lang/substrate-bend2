@@ -1,6 +1,9 @@
 ;; The runtime of Bend's compiled code: nodes, reference counting and printing.
-;; A term: bit 63 shared; bits 56-62 tag (0 packed, 1 Nat, 2 node, 3 closure); bits 0-31 address;
-;; bits 32-55 a node's constructor (low 12) and field count (high 12), or a closure's table index.
+;; A term's bits:
+;;   63     shared
+;;   56-62  tag: 0 packed, 1 Nat, 2 node, 3 closure
+;;   32-55  a node's constructor (low 12) and field count (high 12), or a closure's table index
+;;   0-31   address
 
 (require nodes "nodes.sub" node-alloc node-free nodes-live)
 
@@ -26,7 +29,7 @@
 
 (define (live) -> i32 (cast i32 (nodes-live)))
 
-;; A shared term points at a one-word redirect: its node's address above, its owner count below.
+;; A shared term points at a one-word redirect, which holds its node's address above and its owner count below.
 (define (share [t u64] [k u32]) -> u64
   (cond [(shared? t)
          (let ([r (loc-of t)])
@@ -86,8 +89,8 @@
     (set! stack (cast (ptr u64) (realloc stack (* room 8)))))
   (set! (@ stack top) t))
 
-;; The checker's U32 is a Word: 32 WCon nodes, low bit first, each a packed Bool (True is 1 << 32),
-;; ending in WNil (0). At run time a U32 is a machine word.
+;; The checker's U32 is a Word: 32 WCon nodes, low bit first, each holding a packed Bool (True is 1 << 32), and then
+;; WNil (0). At run time, a U32 is a machine word.
 
 (define (word-u32 [w u64]) -> u64
   (let ([v u64 0] [bit u32 0] [x w])
@@ -110,7 +113,7 @@
 
 (define (write-u32 [t u64]) (printf "~a" (bit-and t 4294967295)))
 
-;; As Bend prints a Nat: Zero, or (nat n).
+;; write-nat writes a Nat as Bend prints it: Zero, or (nat n).
 (define (write-nat [t u64])
   (let ([n (bit-and t 281474976710655)])
     (if (== n 0) (printf "Zero") (printf "(nat ~a)" n))))
