@@ -1,4 +1,4 @@
-;; A fill of laws.sub's half; half-same.sub fills it differently.
+;; A fill of laws.sub's half. half-same.sub fills it differently.
 (language bend2)
 (require-unqualified "laws.sub")
 

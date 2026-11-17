@@ -14,7 +14,7 @@ mkdir -p "$out"
   "$here/proofs.sh" "$n"; } > "$out/proofs-$n.sub"
 warm="$out/warm-cache"
 mkdir -p "$warm"
-(cd "$here" && "$substrate" build warm.sub -o "$out/warm" -c "$warm" > /dev/null)
+(cd "$here/.." && "$substrate" build warm -o "$out/warm" -c "$warm" > /dev/null)
 log="$out/time.log"
 for ((i = 0; i < runs; i++)); do
   rm -rf "${out:?}/proofs-$n" "${out:?}/cache"

@@ -37,8 +37,8 @@
   (set! inlines (make-table))
   (set! borrows (make-table))
   (set! in-progress nil)
-  (set! uniform-lay (new-lay uniform-kind 1 0))
-  (set! word-lay (new-lay word-kind 1 0))
+  (set! uniform-lay (new-lay .uniform 1 0))
+  (set! word-lay (new-lay .word 1 0))
   (prims-start! prefix))
 
 (define (lowered-forms!) -> datum
@@ -282,7 +282,7 @@
 
 ;; ---- layouts ----
 
-(enum lay-kind uniform-kind word-kind flat-kind)
+(enum lay-kind uniform word flat)
 
 (struct lay [kind lay-kind] [words u32] [counts (slice u32)] [box datum] [unbox datum])
 
@@ -296,7 +296,7 @@
 (define (new-lay [kind lay-kind] [w u32] [counts (slice u32)]) -> (ptr lay)
   (new home (lay #:kind kind #:words w #:counts counts #:box 0 #:unbox 0)))
 
-(define (flat? [l (ptr lay)]) -> bool (== (-> l kind) flat-kind))
+(define (flat? [l (ptr lay)]) -> bool (== (-> l kind) .flat))
 
 (define (layout-of [T (ptr term)]) -> (ptr lay)
   (if (== T 0)
@@ -346,7 +346,7 @@
     (let* ([k (cast u64 (string->symbol (format-message "~a" `(,key))))] [known (cast (ptr lay) (hash-ref shapes k))])
       (if (!= known 0)
           known
-          (let ([l (new-lay flat-kind w counts)])
+          (let ([l (new-lay .flat w counts)])
             (hash-set! shapes k (cast u32 l))
             l)))))
 
@@ -394,7 +394,7 @@
 (define (cons-code [c datum] [l datum]) -> datum (if (== c 0) l (cons c l)))
 
 ;; ---- a function's code ----
-;; A Case's kind: 0 a node, 1 a Nat, 2 a U32, 3 a flat value.
+;; A Case's kind is 0 for a node, 1 for a Nat, 2 for a U32 and 3 for a flat value.
 
 (variant ir
   [Use [v datum]]
@@ -417,21 +417,21 @@
 
 (define (new-ir [c ir]) -> (ptr ir) (new (current-arena) c))
 
-(define (lit [x i64]) -> (ptr ir) (new-ir (Lit x)))
+(define (lit [x i64]) -> (ptr ir) (new-ir (.Lit x)))
 
 (define (ir-array [n u32]) -> (slice (ptr ir)) (new (current-arena) (ptr ir) n))
 (define (sym-array [n u32]) -> (slice datum) (new (current-arena) datum n))
 
 (define (ir-words [c (ptr ir)]) -> u32
   (match c
-    [(Values xs)
+    [(.Values xs)
      (let ([w u32 0])
        (for ([j u32 0]) (< j (-> xs length)) (+= j 1) (+= w (ir-words (@ xs j))))
        w)]
-    [(Call _ _ k _) k]
-    [(Unbox l _) (-> l words)]
-    [(Bind _ _ r) (ir-words r)]
-    [(Case _ _ bs o)
+    [(.Call _ _ k _) k]
+    [(.Unbox l _) (-> l words)]
+    [(.Bind _ _ r) (ir-words r)]
+    [(.Case _ _ bs o)
      (let ([w u32 (if (!= o 0) (ir-words o) 0)])
        (for ([j u32 0]) (< j (-> bs length)) (+= j 1)
          (let ([bw (ir-words (-> (@ bs j) then))]) (when (> bw w) (set! w bw))))
@@ -450,24 +450,24 @@
   (let ([have (-> v l)] [c (-> v c)])
     (cond [(== have want) c]
           [(flat? have)
-           (let ([u (box-ir have c)]) (if (flat? want) (new-ir (Unbox want u)) u))]
-          [(flat? want) (new-ir (Unbox want c))]
+           (let ([u (box-ir have c)]) (if (flat? want) (new-ir (.Unbox want u)) u))]
+          [(flat? want) (new-ir (.Unbox want c))]
           [else c])))
 
 (define (box-ir [l (ptr lay)] [c (ptr ir)]) -> (ptr ir)
   (match c
-    [(Values xs)
+    [(.Values xs)
      (let ([j u32 0] [from u32 0])
        (when (> (-> l counts length) 1)
-         (match (@ xs 0) [(Lit y) (set! j (cast u32 y))] [_ (return (new-ir (Box l c)))])
+         (match (@ xs 0) [(.Lit y) (set! j (cast u32 y))] [_ (return (new-ir (.Box l c)))])
          (set! from 1))
        (let ([m (@ (-> l counts) j)])
          (if (== m 0)
              (lit (packed j))
              (let ([ys (ir-array m)])
                (for ([i u32 0]) (< i m) (+= i 1) (set! (@ ys i) (@ xs (+ from i))))
-               (new-ir (Make (node-bits j m) ys))))))]
-    [_ (new-ir (Box l c))]))
+               (new-ir (.Make (node-bits j m) ys))))))]
+    [_ (new-ir (.Box l c))]))
 
 ;; ---- functions being made ----
 
@@ -486,23 +486,23 @@
   (let ([syms nil])
     (for ([j u32 0]) (< j (-> l words)) (+= j 1)
       (let ([s (local! k)])
-        (unless (== (-> l kind) uniform-kind) (plain! s))
+        (unless (== (-> l kind) .uniform) (plain! s))
         (set! syms (cons s syms))))
     (binding l (reverse syms))))
 
 (define (binding-ir [b datum]) -> (ptr ir)
   (let ([syms (b-syms b)])
     (if (null? (cdr syms))
-        (new-ir (Use (car syms)))
+        (new-ir (.Use (car syms)))
         (let* ([n (length syms)] [xs (ir-array n)] [l syms])
           (for ([j u32 0]) (< j n) (+= j 1)
-            (set! (@ xs j) (new-ir (Use (car l))))
+            (set! (@ xs j) (new-ir (.Use (car l))))
             (set! l (cdr l)))
-          (new-ir (Values xs))))))
+          (new-ir (.Values xs))))))
 
 (define (probe [k datum]) -> (ptr term)
   (+= probes 1)
-  (new-term (Var k probes 0 0)))
+  (new-term (.Var k probes 0 0)))
 
 (define (bind! [f (ptr lfn)] [p (ptr term)] [v datum]) (hash-set! (-> f locals) (cast u64 (cast u32 (var-i p))) (cast u32 v)))
 
@@ -580,7 +580,7 @@
       (let ([w (word-value (@ (ctr-x x) 0))])
         (when (>= w 0) (return (mkval (lit w) word-lay)))
         (set! (@ xs 0) (expr-at f (@ (ctr-x x) 0) uniform-lay))
-        (return (mkval (new-ir (Prim op-word (slice xs 0 1))) word-lay))))
+        (return (mkval (new-ir (.Prim op-word (slice xs 0 1))) word-lay))))
     (for ([j u32 0]) (< j (-> (ctr-x x) length)) (+= j 1)
       (when (!= (dom-q (car fs)) 0)
         (set! (@ xs n) (expr-at f (@ (ctr-x x) j) (if (or (flat? l) (word-family? fam)) word-lay uniform-lay)))
@@ -590,20 +590,20 @@
            (if (== n 0)
                (mkval (lit nat-zero) word-lay)
                (let ([a (@ xs 0)])
-                 (match a [(Lit y) (mkval (lit (+ y 1)) word-lay)] [_ (mkval (new-ir (Succ a)) word-lay)])))]
+                 (match a [(.Lit y) (mkval (lit (+ y 1)) word-lay)] [_ (mkval (new-ir (.Succ a)) word-lay)])))]
           [(flat? l)
            (let* ([tagged (> (-> l counts length) 1)] [w (-> l words)] [ys (ir-array w)] [i u32 0])
              (when tagged (set! (@ ys 0) (lit v)) (set! i 1))
              (for ([j u32 0]) (< j n) (+= j 1) (set! (@ ys i) (@ xs j)) (+= i 1))
              (while (< i w) (set! (@ ys i) (lit 0)) (+= i 1))
-             (mkval (new-ir (Values ys)) l))]
+             (mkval (new-ir (.Values ys)) l))]
           [(word-ctor? k)
            (let ([a (@ xs 0)])
              (match a
-               [(Lit y) (mkval (lit (bit-or (packed v) y)) word-lay)]
-               [_ (mkval (new-ir (Pack (packed v) a)) word-lay)]))]
+               [(.Lit y) (mkval (lit (bit-or (packed v) y)) word-lay)]
+               [_ (mkval (new-ir (.Pack (packed v) a)) word-lay)]))]
           [(== n 0) (mkval (lit (packed v)) (if (word-family? fam) word-lay uniform-lay))]
-          [else (mkval (new-ir (Make (node-bits v n) (slice xs 0 n))) uniform-lay)])))
+          [else (mkval (new-ir (.Make (node-bits v n) (slice xs 0 n))) uniform-lay)])))
 
 (struct spined [head (ptr term)] [h (ptr term)] [apps datum])
 
@@ -657,11 +657,11 @@
                     (set! a (cdr a))
                     (+= pi 1))
                   (if (>= op 0)
-                      (mkval (new-ir (Prim (cast u32 op) xs)) word-lay)
+                      (mkval (new-ir (.Prim (cast u32 op) xs)) word-lay)
                       (let ([inl (inline-ir f (ref-k head) def s xs)])
                         (mkval (if (!= inl 0)
                                    inl
-                                   (new-ir (Call (code-of (ref-k head)) xs (-> (-> s result) words) (ref-k head))))
+                                   (new-ir (.Call (code-of (ref-k head)) xs (-> (-> s result) words) (ref-k head))))
                                (-> s result)))))]
                [(> n need) (apply-last f live)]
                [else
@@ -676,11 +676,11 @@
 
 (define (apply-last [f (ptr lfn)] [live datum]) -> val
   (let ([a (cast (ptr term) (car (reverse live)))])
-    (mkval (new-ir (Apply (expr-at f (app-f a) uniform-lay) (expr-at f (app-x a) uniform-lay))) uniform-lay)))
+    (mkval (new-ir (.Apply (expr-at f (app-f a) uniform-lay) (expr-at f (app-x a) uniform-lay))) uniform-lay)))
 
 (define (let-ir [f (ptr lfn)] [x (ptr term)] [ty (ptr term)] [args datum] [tail bool] [want (ptr lay)]) -> val
   (let ([n u32 0] [bs (slice binder) 0] [bd (ptr body) 0])
-    (match x [(Let lbs _ lbd _) (set! n (-> lbs length)) (set! bs lbs) (set! bd lbd)] [_ 0])
+    (match x [(.Let lbs _ lbd _) (set! n (-> lbs length)) (set! bs lbs) (set! bd lbd)] [_ 0])
     (let ([ps (term-array n)] [names (sym-array n)] [vals (ir-array n)] [r val])
       (for ([j u32 0]) (< j n) (+= j 1)
         (if (== (-> (@ bs j) q) 0)
@@ -695,7 +695,7 @@
       (let ([c (-> r c)])
         (for ([j u32 n]) (> j 0) (-= j 1)
           (unless (== (@ names (- j 1)) 0)
-            (set! c (new-ir (Bind (@ names (- j 1)) (@ vals (- j 1)) c)))))
+            (set! c (new-ir (.Bind (@ names (- j 1)) (@ vals (- j 1)) c)))))
         (mkval c (-> r l))))))
 
 (define (closure-ir [f (ptr lfn)] [x (ptr term)] [ty (ptr term)]) -> (ptr ir)
@@ -706,7 +706,7 @@
       (set! (@ vs j) (car cs))
       (set! cs (cdr cs)))
     (lift! (closure-func name (reverse (-> g caps)) n arg b))
-    (new-ir (Close name vs))))
+    (new-ir (.Close name vs))))
 
 (define (body-ir [f (ptr lfn)] [t (ptr term)] [ty (ptr term)] [args datum] [want (ptr lay)]) -> (ptr ir)
   (let* ([pl (peel t ty)] [x (-> pl x)] [xty (-> pl ty)])
@@ -720,9 +720,9 @@
                     [rest (begin (bind! f p nb) (body-ir f (body-apply (lam-bd x) p) (body-apply (all-bd all) p) (cdr args) want))])
                (if (== nb a)
                    rest
-                   (new-ir (Bind (b-syms nb) (to (mkval (binding-ir a) al) bl) rest))))
+                   (new-ir (.Bind (b-syms nb) (to (mkval (binding-ir a) al) bl) rest))))
              (begin (bind! f p erased) (body-ir f (body-apply (lam-bd x) p) (body-apply (all-bd all) p) args want))))]
-      [(Efq? x) (new-ir (Fail))]
+      [(Efq? x) (new-ir .Fail)]
       [(Mat? x) (match-ir f x xty args want)]
       [(Let? x) (-> (let-ir f x xty args #t want) c)]
       [(pair? args) (body-ir f (eta x xty 1) xty args want)]
@@ -744,7 +744,7 @@
   (let* ([all (ty-all ty)] [adt (term-wnf (all-A all))] [sl (layout-of (all-A all))] [a (car args)] [al (b-lay a)])
     (if (not (or (== al sl) (and (flat? sl) (== al uniform-lay))))
         (let ([nb (new-binding sl 's)])
-          (new-ir (Bind (b-syms nb) (to (mkval (binding-ir a) al) sl)
+          (new-ir (.Bind (b-syms nb) (to (mkval (binding-ir a) al) sl)
                         (match-ir f x ty (cons nb (cdr args)) want))))
         (let* ([k (adt-k adt)] [total (-> (adtd-cs (book-adt adt 0)) length)]
                [kind (cond [(flat? al) 3] [(nat-family? k) 1] [(== k u32-family) 2] [else 0])]
@@ -754,7 +754,7 @@
             (let ([mt (cast (ptr term) arm)])
               (set! (@ bs j) (branch-ir f (mat-k mt) (mat-h mt) (cdr args) adt sl kind (b-syms a) want)))
             (+= j 1))
-          (new-ir (Case (if (== kind 3) (b-syms a) (car (b-syms a))) kind bs
+          (new-ir (.Case (if (== kind 3) (b-syms a) (car (b-syms a))) kind bs
                         (if (< na total) (body-ir f (-> cs rest) 0 args want) 0)))))))
 
 (define (branch-ir [f (ptr lfn)] [k datum] [h (ptr term)] [rest datum] [adt (ptr term)] [sl (ptr lay)] [kind i32]
@@ -819,26 +819,26 @@
       (hash-set! inlines (cast u64 k) 1)
       (let ([l (reverse params)])
         (for ([i u32 (-> xs length)]) (> i 0) (-= i 1)
-          (set! body (new-ir (Bind (b-syms (car l)) (@ xs (- i 1)) body)))
+          (set! body (new-ir (.Bind (b-syms (car l)) (@ xs (- i 1)) body)))
           (set! l (cdr l))))
       body)))
 
 (define (ir-size [c (ptr ir)]) -> u32
   (match c
-    [(Use _) 0]
-    [(Lit _) 0]
-    [(Values xs) (irs-size xs)]
-    [(Call _ xs _ _) (+ 1 (irs-size xs))]
-    [(Prim _ xs) (+ 1 (irs-size xs))]
-    [(Apply g x) (+ 1 (+ (ir-size g) (ir-size x)))]
-    [(Succ x) (+ 1 (ir-size x))]
-    [(Make _ xs) (+ 4 (irs-size xs))]
-    [(Pack _ x) (+ 1 (ir-size x))]
-    [(Close _ _) 1000000]
-    [(Box _ x) (+ 4 (ir-size x))]
-    [(Unbox _ x) (+ 4 (ir-size x))]
-    [(Bind _ x r) (+ (ir-size x) (ir-size r))]
-    [(Case _ kind bs o)
+    [(.Use _) 0]
+    [(.Lit _) 0]
+    [(.Values xs) (irs-size xs)]
+    [(.Call _ xs _ _) (+ 1 (irs-size xs))]
+    [(.Prim _ xs) (+ 1 (irs-size xs))]
+    [(.Apply g x) (+ 1 (+ (ir-size g) (ir-size x)))]
+    [(.Succ x) (+ 1 (ir-size x))]
+    [(.Make _ xs) (+ 4 (irs-size xs))]
+    [(.Pack _ x) (+ 1 (ir-size x))]
+    [(.Close _ _) 1000000]
+    [(.Box _ x) (+ 4 (ir-size x))]
+    [(.Unbox _ x) (+ 4 (ir-size x))]
+    [(.Bind _ x r) (+ (ir-size x) (ir-size r))]
+    [(.Case _ kind bs o)
      (let ([t u32 (if (!= o 0) (+ 1 (ir-size o)) 1)])
        (for ([j u32 0]) (< j (-> bs length)) (+= j 1)
          (let ([b (@ bs j)])
@@ -860,36 +860,36 @@
 (define (refers? [t (ptr term)] [k datum]) -> bool
   (when (== t 0) (return #f))
   (match t
-    [(Var _ i v _) (and (< i 0) (refers? v k))]
-    [(Ref r _) (== r k)]
-    [(Sub _ v _ b _) (or (refers? v k) (refers? b k))]
-    [(Let bs b _ _)
+    [(.Var _ i v _) (and (< i 0) (refers? v k))]
+    [(.Ref r _) (== r k)]
+    [(.Sub _ v _ b _) (or (refers? v k) (refers? b k))]
+    [(.Let bs b _ _)
      (for ([j u32 0]) (< j (-> bs length)) (+= j 1) (when (refers? (-> (@ bs j) v) k) (return #t)))
      (refers? b k)]
-    [(Lam _ _ b _ _) (refers? b k)]
-    [(App g x _) (or (refers? g k) (refers? x k))]
-    [(Ctr _ xs _)
+    [(.Lam _ _ b _ _) (refers? b k)]
+    [(.App g x _) (or (refers? g k) (refers? x k))]
+    [(.Ctr _ xs _)
      (for ([j u32 0]) (< j (-> xs length)) (+= j 1) (when (refers? (@ xs j) k) (return #t)))
      #f]
-    [(Mat _ h m _) (or (refers? h k) (refers? m k))]
-    [(Rwt _ _ b _) (refers? b k)]
-    [(Ann x _ _) (refers? x k)]
+    [(.Mat _ h m _) (or (refers? h k) (refers? m k))]
+    [(.Rwt _ _ b _) (refers? b k)]
+    [(.Ann x _ _) (refers? x k)]
     [_ #f]))
 
 (define (term-size [t (ptr term)] [limit u32]) -> u32
   (when (== t 0) (return 0))
   (match t
-    [(Var _ i v _) (if (and (< i 0) (!= v 0)) (term-size v limit) 1)]
-    [(Sub _ v _ b _) (+ (term-size v limit) (term-size b limit))]
-    [(Let bs b _ _)
+    [(.Var _ i v _) (if (and (< i 0) (!= v 0)) (term-size v limit) 1)]
+    [(.Sub _ v _ b _) (+ (term-size v limit) (term-size b limit))]
+    [(.Let bs b _ _)
      (let ([s u32 1])
        (for ([j u32 0]) (< j (-> bs length)) (+= j 1)
          (+= s (term-size (-> (@ bs j) v) limit))
          (when (> s limit) (return s)))
        (+ s (term-size b limit)))]
-    [(Lam _ _ b _ _) (+ 1 (term-size b limit))]
-    [(App g x _) (let ([s (+ 1 (term-size g limit))]) (if (> s limit) s (+ s (term-size x limit))))]
-    [(Ctr k xs _)
+    [(.Lam _ _ b _ _) (+ 1 (term-size b limit))]
+    [(.App g x _) (let ([s (+ 1 (term-size g limit))]) (if (> s limit) s (+ s (term-size x limit))))]
+    [(.Ctr k xs _)
      (if (== k u32-name)
          1
          (let ([s u32 1])
@@ -897,9 +897,9 @@
              (+= s (term-size (@ xs j) limit))
              (when (> s limit) (return s)))
            s))]
-    [(Mat _ h m _) (let ([s (+ 1 (term-size h limit))]) (if (> s limit) s (+ s (term-size m limit))))]
-    [(Rwt _ _ b _) (term-size b limit)]
-    [(Ann x _ _) (term-size x limit)]
+    [(.Mat _ h m _) (let ([s (+ 1 (term-size h limit))]) (if (> s limit) s (+ s (term-size m limit))))]
+    [(.Rwt _ _ b _) (term-size b limit)]
+    [(.Ann x _ _) (term-size x limit)]
     [_ 1]))
 
 ;; ---- borrowing ----
@@ -919,7 +919,7 @@
 
 (define (lent? [k datum] [j u32]) -> bool (and (< j 32) (!= (bit-and (borrow-mask k) (<< (cast u32 1) j)) 0)))
 
-(define (use-of [c (ptr ir)]) -> datum (match c [(Use v) v] [_ 0]))
+(define (use-of [c (ptr ir)]) -> datum (match c [(.Use v) v] [_ 0]))
 
 (define roots (ptr hash-table) 0)
 (define escaped u32 0)
@@ -931,9 +931,9 @@
 
 (define (scan! [c (ptr ir)] [tail bool])
   (match c
-    [(Use v) (escape-place! (root-of v))]
-    [(Values xs) (scan-all! xs)]
-    [(Call _ xs _ key)
+    [(.Use v) (escape-place! (root-of v))]
+    [(.Values xs) (scan-all! xs)]
+    [(.Call _ xs _ key)
      (for ([j u32 0]) (< j (-> xs length)) (+= j 1)
        (let* ([x (@ xs j)] [v (use-of x)])
          (cond [(not (lent? key j)) (scan! x #f)]
@@ -941,21 +941,21 @@
                 (scan! x #f)
                 (when (and tail (== key current-def)) (escape-place! (+ j 1)))]
                [(and tail (== key current-def) (== (root-of v) 0) (not (plain? v))) (escape-place! (+ j 1))])))]
-    [(Prim _ xs) (scan-all! xs)]
-    [(Apply g x) (scan! g #f) (scan! x #f)]
-    [(Succ x) (scan! x #f)]
-    [(Make _ xs) (scan-all! xs)]
-    [(Pack _ x) (scan! x #f)]
-    [(Close _ vs) (for ([j u32 0]) (< j (-> vs length)) (+= j 1) (escape-place! (root-of (@ vs j))))]
-    [(Box _ x) (scan! x #f)]
-    [(Unbox _ x) (scan! x #f)]
-    [(Bind vs x r)
+    [(.Prim _ xs) (scan-all! xs)]
+    [(.Apply g x) (scan! g #f) (scan! x #f)]
+    [(.Succ x) (scan! x #f)]
+    [(.Make _ xs) (scan-all! xs)]
+    [(.Pack _ x) (scan! x #f)]
+    [(.Close _ vs) (for ([j u32 0]) (< j (-> vs length)) (+= j 1) (escape-place! (root-of (@ vs j))))]
+    [(.Box _ x) (scan! x #f)]
+    [(.Unbox _ x) (scan! x #f)]
+    [(.Bind vs x r)
      (let ([v (use-of x)])
        (if (and (!= v 0) (null? (cdr vs)))
            (let ([rt (root-of v)]) (unless (== rt 0) (hash-set! roots (cast u64 (car vs)) rt)))
            (scan! x #f)))
      (scan! r tail)]
-    [(Case s kind bs o)
+    [(.Case s kind bs o)
      (let ([rt (if (or (pair? s) (!= kind 0)) 0 (root-of s))])
        (for ([j u32 0]) (< j (-> bs length)) (+= j 1)
          (let ([b (@ bs j)])
@@ -971,17 +971,17 @@
 
 (define (calls-unmade? [c (ptr ir)]) -> bool
   (match c
-    [(Call _ xs _ key) (or (== (hash-find borrows (cast u64 key)) 0) (calls-unmade-any? xs))]
-    [(Values xs) (calls-unmade-any? xs)]
-    [(Prim _ xs) (calls-unmade-any? xs)]
-    [(Make _ xs) (calls-unmade-any? xs)]
-    [(Apply g x) (or (calls-unmade? g) (calls-unmade? x))]
-    [(Succ x) (calls-unmade? x)]
-    [(Pack _ x) (calls-unmade? x)]
-    [(Box _ x) (calls-unmade? x)]
-    [(Unbox _ x) (calls-unmade? x)]
-    [(Bind _ x r) (or (calls-unmade? x) (calls-unmade? r))]
-    [(Case _ _ bs o)
+    [(.Call _ xs _ key) (or (== (hash-find borrows (cast u64 key)) 0) (calls-unmade-any? xs))]
+    [(.Values xs) (calls-unmade-any? xs)]
+    [(.Prim _ xs) (calls-unmade-any? xs)]
+    [(.Make _ xs) (calls-unmade-any? xs)]
+    [(.Apply g x) (or (calls-unmade? g) (calls-unmade? x))]
+    [(.Succ x) (calls-unmade? x)]
+    [(.Pack _ x) (calls-unmade? x)]
+    [(.Box _ x) (calls-unmade? x)]
+    [(.Unbox _ x) (calls-unmade? x)]
+    [(.Bind _ x r) (or (calls-unmade? x) (calls-unmade? r))]
+    [(.Case _ _ bs o)
      (for ([j u32 0]) (< j (-> bs length)) (+= j 1) (when (calls-unmade? (-> (@ bs j) then)) (return #t)))
      (and (!= o 0) (calls-unmade? o))]
     [_ #f]))
@@ -1038,21 +1038,21 @@
 
 (define (uses? [c (ptr ir)] [v datum]) -> bool
   (match c
-    [(Use x) (== x v)]
-    [(Values xs) (uses-any? xs v)]
-    [(Call _ xs _ _) (uses-any? xs v)]
-    [(Prim _ xs) (uses-any? xs v)]
-    [(Apply g x) (or (uses? g v) (uses? x v))]
-    [(Succ x) (uses? x v)]
-    [(Make _ xs) (uses-any? xs v)]
-    [(Pack _ x) (uses? x v)]
-    [(Box _ x) (uses? x v)]
-    [(Unbox _ x) (uses? x v)]
-    [(Close _ vs)
+    [(.Use x) (== x v)]
+    [(.Values xs) (uses-any? xs v)]
+    [(.Call _ xs _ _) (uses-any? xs v)]
+    [(.Prim _ xs) (uses-any? xs v)]
+    [(.Apply g x) (or (uses? g v) (uses? x v))]
+    [(.Succ x) (uses? x v)]
+    [(.Make _ xs) (uses-any? xs v)]
+    [(.Pack _ x) (uses? x v)]
+    [(.Box _ x) (uses? x v)]
+    [(.Unbox _ x) (uses? x v)]
+    [(.Close _ vs)
      (for ([j u32 0]) (< j (-> vs length)) (+= j 1) (when (== (@ vs j) v) (return #t)))
      #f]
-    [(Bind _ x r) (or (uses? x v) (uses? r v))]
-    [(Case s _ bs o)
+    [(.Bind _ x r) (or (uses? x v) (uses? r v))]
+    [(.Case s _ bs o)
      (when (or (== s v) (and (pair? s) (!= (memq v s) 0))) (return #t))
      (for ([j u32 0]) (< j (-> bs length)) (+= j 1) (when (uses? (-> (@ bs j) then) v) (return #t)))
      (and (!= o 0) (uses? o v))]
@@ -1145,14 +1145,14 @@
 
 (define (emit-live [c (ptr ir)] [gamma datum] [sp (ptr spare)] [tail i32]) -> datum
   (match c
-    [(Use v) (finish v sp tail)]
-    [(Lit x) (finish (i64-const x) sp tail)]
-    [(Fail) `(unreachable)]
-    [(Values xs)
+    [(.Use v) (finish v sp tail)]
+    [(.Lit x) (finish (i64-const x) sp tail)]
+    [.Fail `(unreachable)]
+    [(.Values xs)
      (let* ([pc (emit-parts xs gamma sp)] [pa (part-args xs (cdr pc) nil)])
        (finish (sequence (car pc) (bound-code (car pa) (if (and (== (-> xs length) 1) (null? (car pa))) (car (cadr pa)) `(values ,@(cadr pa)))))
                sp tail))]
-    [(Call fn xs k key)
+    [(.Call fn xs k key)
      (let* ([pc (emit-parts xs gamma sp)] [force nil] [pa datum 0])
        (for ([j u32 0]) (< j (-> xs length)) (+= j 1)
          (let ([v (use-of (@ xs j))])
@@ -1160,10 +1160,10 @@
        (set! pa (part-args xs (cdr pc) (reverse force)))
        (let ([call `(#%app ,fn ,@(cadr pa))])
          (finish (sequence (car pc) (bound-code (car pa) (if (null? (caddr pa)) call (after-call call k (caddr pa))))) sp tail)))]
-    [(Prim op xs)
+    [(.Prim op xs)
      (let ([pc (emit-parts xs gamma sp)])
        (finish (sequence (car pc) (prim-code op (cdr pc))) sp tail))]
-    [(Apply g x)
+    [(.Apply g x)
      (let* ([xs (ir-array 2)] [cv (local! 'g)] [av (local! 'x)])
        (set! (@ xs 0) g)
        (set! (@ xs 1) x)
@@ -1173,17 +1173,17 @@
                               (let ([,av ,(caddr pc)])
                                 (call-indirect (i64 i64 -> i64) ,(index-code cv) ,cv ,av))))
                  sp tail)))]
-    [(Succ x) (finish `(i64.add ,(emit x gamma sp 0) (i64.const 1)) sp tail)]
-    [(Pack bits x)
+    [(.Succ x) (finish `(i64.add ,(emit x gamma sp 0) (i64.const 1)) sp tail)]
+    [(.Pack bits x)
      (let ([e (emit x gamma sp 0)]) (finish (if (== bits 0) e `(i64.or ,(i64-const bits) ,e)) sp tail))]
-    [(Box l x)
+    [(.Box l x)
      (let* ([xs (ir-array 1)] [pc datum 0] [pa datum 0])
        (set! (@ xs 0) x)
        (set! pc (emit-parts xs gamma sp))
        (set! pa (part-args xs (cdr pc) nil))
        (finish (sequence (car pc) (bound-code (car pa) `(#%app ,(box-name l) ,@(cadr pa)))) sp tail))]
-    [(Unbox l x) (finish `(#%app ,(unbox-name l) ,(emit x gamma sp 0)) sp tail)]
-    [(Make bits xs)
+    [(.Unbox l x) (finish `(#%app ,(unbox-name l) ,(emit x gamma sp 0)) sp tail)]
+    [(.Make bits xs)
      (let* ([n (-> xs length)] [nd (local! 'nd)] [at (alloc-code n sp)] [pc (emit-parts xs gamma sp)] [stores nil] [es (cdr pc)])
        (for ([j u32 0]) (< j n) (+= j 1)
          (set! stores (cons (store-code nd j (car es)) stores))
@@ -1193,7 +1193,7 @@
                             ,@(reverse stores)
                             (i64.or ,(i64-const bits) (i64.extend_i32_u ,nd))))
                sp tail))]
-    [(Close fn vs)
+    [(.Close fn vs)
      (let ([n (-> vs length)] [word `(i64.or ,(i64-const closure-tag) (i64.shl (i64.extend_i32_u (func-index ,fn)) (i64.const 32)))])
        (if (== n 0)
            (finish word sp tail)
@@ -1205,7 +1205,7 @@
                         ,@(reverse stores)
                         (i64.or ,word (i64.extend_i32_u ,nd)))
                      sp tail))))]
-    [(Bind vs x r)
+    [(.Bind vs x r)
      (let ([v (use-of x)])
        (if (and (!= v 0) (null? (cdr vs)) (borrowed? v))
            (begin
@@ -1218,7 +1218,7 @@
              (sequence (reverse shares)
                        `(let ([,(if (null? (cdr vs)) (car vs) vs) ,(emit x (used-by gamma x) sp 0)])
                           ,(emit r (append vs (used-by gamma r)) sp tail))))))]
-    [(Case s kind bs o) (emit-case s kind bs o gamma sp tail)]))
+    [(.Case s kind bs o) (emit-case s kind bs o gamma sp tail)]))
 
 (const switch-ways u32 4)
 
@@ -1320,7 +1320,7 @@
         (set! succ sc)
         (set! go #f)
         (match (-> sc then)
-          [(Case ts tkind tbs to)
+          [(.Case ts tkind tbs to)
            (when (and (== tkind 1) (== ts (@ (-> sc vs) 0)) (nat-level? tbs to) (not (branches-use? tbs ts)))
              (set! bs tbs)
              (set! o to)
